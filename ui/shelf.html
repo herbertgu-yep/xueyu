@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>学屿 · 书架</title>
+<link rel="stylesheet" href="/mac.css">
+<link rel="stylesheet" href="/app.css">
+<style>
+  /* ===== Finder 式双栏 ===== */
+  .finder{flex:1;display:flex;min-width:0;min-height:0}
+  .fd-side{width:210px;flex-shrink:0;border-right:2px solid var(--ink);background:rgba(255,253,246,.75);display:flex;flex-direction:column;padding:10px 8px;overflow-y:auto}
+  .fd-side .side-label{padding:6px 8px 4px}
+  .fd-folder{display:flex;align-items:center;gap:8px;padding:6px 10px;font-size:13px;font-weight:700;color:#57503f;border:2px solid transparent;border-radius:10px 4px 11px 5px;cursor:pointer;user-select:none}
+  .fd-folder:hover{border-color:var(--ink)}
+  .fd-folder.on{background:var(--ylw);border-color:var(--ink);box-shadow:2px 2px 0 var(--ink)}
+  .fd-folder .n{margin-left:auto;font-size:10.5px;color:var(--dim);font-weight:800}
+  .fd-side .fd-add{margin-top:auto;display:flex;gap:6px}
+  .fd-main{flex:1;display:flex;flex-direction:column;min-width:0;min-height:0}
+  .fd-tools{display:flex;gap:8px;align-items:center;padding:10px 14px;border-bottom:2px dashed #e0d6bd;background:rgba(255,253,246,.7);flex-wrap:wrap}
+  .fd-tools .input{width:220px;padding:6px 12px;font-size:12.5px}
+  .fd-tools .spacer{flex:1}
+  .fd-list{flex:1;overflow-y:auto;padding:10px 14px 30px}
+  .fd-row{display:flex;align-items:center;gap:12px;padding:9px 12px;border:2px solid transparent;border-radius:11px 5px 12px 6px;cursor:pointer;font-size:13px}
+  .fd-row:hover{border-color:var(--ink);background:#fff}
+  .fd-row .ic{width:34px;height:34px;border-radius:9px;border:2px solid var(--ink);display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0}
+  .fd-row .nm{flex:1;min-width:0}
+  .fd-row .nm b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:13px}
+  .fd-row .nm small{color:var(--dim);font-size:10.5px;font-weight:700}
+  .fd-row .meta{display:flex;gap:14px;align-items:center;font-size:11.5px;color:var(--dim);font-weight:700;flex-shrink:0}
+  .fd-row .meta .dtag{flex-shrink:0}
+  .fd-empty{padding:44px 20px;text-align:center;color:var(--dim);font-size:12.5px;font-weight:700}
+  .rag-note{display:flex;gap:12px;align-items:center;background:#e8f0fe;border:2px solid var(--ink);border-radius:var(--hw);padding:10px 16px;margin:10px 14px 0;font-size:12px;flex-shrink:0}
+  .rag-note .ric{font-size:20px}
+  .fd-row .acts{display:flex;gap:4px;flex-shrink:0}
+  .fd-row .acts .tb-btn{width:26px;height:26px;min-width:26px;font-size:12px}
+  .fd-row .fd-cat:focus{box-shadow:2px 2px 0 rgba(61,55,44,.2)}
+</style>
+</head>
+<body data-page="shelf">
+<input type="file" id="file-input" multiple accept=".pdf,.docx,.pptx,.md,.txt,.markdown" style="display:none">
+<div class="app-shell">
+  <header class="app-header" id="app-header" data-title="📚 书架">
+    <span class="app-title"><span class="ico">🏝️</span> 学屿</span>
+    <span class="sep-v"></span>
+    <span class="page-title">📚 书架</span>
+    <div class="tb-tools">
+      <button class="tb-btn" id="global-search" title="全局搜索 ⌘K">🔍</button>
+      <div id="page-tools">
+        <button class="tb-btn" id="upload-btn">⬆ 上传</button>
+      </div>
+    </div>
+  </header>
+  <div class="app">
+    <aside class="sidebar" id="app-sidebar">
+      <div class="side-head" style="display:flex;align-items:center;padding:2px 6px 8px;border-bottom:2px dashed #e0d6bd;margin-bottom:6px">
+        <b style="font-size:12px;color:var(--dim);letter-spacing:1px">学屿</b>
+        <button class="tb-btn" id="side-collapse" title="收起侧边栏" style="margin-left:auto;width:26px;height:26px;min-width:26px">◧</button>
+      </div>
+      <div class="side-label">今天</div>
+      <a class="side-it" href="/" data-nav="index" title="今日清单"><span class="ico2">☀️</span><span class="txt">今日清单</span><span class="cnt" id="cnt-today"></span></a>
+      <a class="side-it" href="/plan" data-nav="plan" title="学习计划"><span class="ico2">📅</span><span class="txt">学习计划</span><span class="cnt" id="cnt-plans"></span></a>
+      <div class="side-label">学习资产</div>
+      <a class="side-it" href="/notes" data-nav="notes" title="笔记"><span class="ico2">📝</span><span class="txt">笔记</span><span class="cnt" id="cnt-notes"></span></a>
+      <a class="side-it" href="/shelf" data-nav="shelf" title="书架"><span class="ico2">📚</span><span class="txt">书架</span><span class="cnt" id="cnt-shelf"></span></a>
+      <a class="side-it" href="/research" data-nav="research" title="深度研究"><span class="ico2">🔬</span><span class="txt">深度研究</span><span class="cnt" id="cnt-research"></span></a>
+      <a class="side-it" href="/settings" data-nav="settings" style="margin-top:auto">⚙️ 设置</a>
+    </aside>
+
+    <main class="main" id="main" style="padding:0;display:flex">
+      <div class="finder">
+        <!-- 左：文件夹 -->
+        <div class="fd-side">
+          <div class="side-label">文件夹</div>
+          <div id="fd-folders"></div>
+          <div class="fd-add">
+            <button class="btn sm ghost" id="folder-add" style="flex:1">＋ 新建文件夹</button>
+            <button class="tb-btn" id="folder-mgr" title="管理文件夹">⚙</button>
+          </div>
+        </div>
+        <!-- 右：文件列表 -->
+        <div class="fd-main">
+          <div class="rag-note" id="rag-note">
+            <span class="ric">🧬</span>
+            <div style="flex:1" id="rag-text">加载索引状态…</div>
+            <button class="btn sm blu" id="reindex-btn" style="white-space:nowrap">↻ 重建索引</button>
+          </div>
+          <div class="fd-tools">
+            <input class="input" id="fd-search" placeholder="🔍 搜索文件名…">
+            <span class="chip" data-fmt="">全部</span><span class="chip" data-fmt="pdf">PDF</span><span class="chip" data-fmt="docx">Word</span><span class="chip" data-fmt="pptx">PPT</span><span class="chip" data-fmt="md">MD</span>
+            <span class="chip" data-analyzed="1">已分析</span>
+            <span class="spacer"></span>
+            <span id="fd-count" style="font-size:11px;font-weight:800;color:var(--dim)"></span>
+          </div>
+          <div class="fd-list" id="fd-list"></div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script src="/vendor/marked.min.js"></script>
+<script src="/vendor/purify.min.js"></script>
+<script src="/app.js"></script>
+<script>
+// 标识符（$ / api / toast / esc 等）由 app.js 全局提供
+let categories = [], documents = [];
+let curFolder = '__all__';   // __all__ | 数字id | 'uncat'
+let fmtFilter = '', analyzedOnly = false, q = '';
+
+/* ---------- 数据加载 ---------- */
+async function loadShelf() {
+  const data = await api('/shelf');
+  categories = data.categories; documents = data.documents;
+  renderRAG(data.index);
+  renderFolders();
+  renderFiles();
+  bootShell();
+}
+
+function renderRAG(idx) {
+  const el = $('#rag-text');
+  if (idx.running) {
+    el.innerHTML = `<b>正在重建向量索引…</b> ${idx.done}/${idx.total} · ${esc(idx.current || '准备中')}
+      <div class="pbar" style="margin-top:6px"><i style="width:${idx.total ? idx.done / idx.total * 100 : 5}%"></i></div>`;
+  } else {
+    el.innerHTML = `<b>向量索引：${idx.indexed_documents}/${idx.documents} 份文档已向量化</b>
+      <span style="color:#4a5a7a">· ${idx.chunks} 个分块 · 模型 ${esc(idx.embedding_model)}
+      ${idx.failed && idx.failed.length ? ' · <span style="color:#b33">失败：' + esc(idx.failed.join('、')) + '</span>' : ''}</span>`;
+  }
+}
+
+function renderFolders() {
+  const counts = id => documents.filter(d => id === 'uncat' ? !d.category_id : d.category_id === id).length;
+  const rows = [{id: '__all__', icon: '🗂', name: '全部文件', n: documents.length}]
+    .concat(categories.map(c => ({id: c.id, icon: c.icon, name: c.name, n: counts(c.id)})))
+    .concat([{id: 'uncat', icon: '📦', name: '未分类', n: counts('uncat')}]);
+  $('#fd-folders').innerHTML = rows.map(r => `
+    <div class="fd-folder ${String(curFolder) === String(r.id) ? 'on' : ''}" data-id="${r.id}">
+      <span>${r.icon}</span><span style="flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(r.name)}</span>
+      <span class="n">${r.n}</span>
+    </div>`).join('');
+  $$('#fd-folders .fd-folder').forEach(el => el.onclick = () => {
+    curFolder = el.dataset.id === '__all__' ? '__all__' : (el.dataset.id === 'uncat' ? 'uncat' : +el.dataset.id);
+    renderFolders(); renderFiles();
+  });
+}
+
+function visibleDocs() {
+  return documents.filter(d => {
+    if (curFolder === 'uncat' && d.category_id) return false;
+    if (typeof curFolder === 'number' && d.category_id !== curFolder) return false;
+    if (fmtFilter && d.fmt !== fmtFilter) return false;
+    if (analyzedOnly && !d.analyzed) return false;
+    if (q && !d.title.toLowerCase().includes(q)) return false;
+    return true;
+  });
+}
+
+function renderFiles() {
+  const docs = visibleDocs().sort((a, b) => (b.uploaded_at || '').localeCompare(a.uploaded_at || ''));
+  $('#fd-count').textContent = docs.length ? `${docs.length} 份` : '';
+  const catOpts = d => `<option value="" ${d.category_id ? '' : 'selected'}>📦 未分类</option>` +
+    categories.map(c => `<option value="${c.id}" ${d.category_id === c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
+  $('#fd-list').innerHTML = docs.length ? docs.map(d => `
+    <div class="fd-row" data-id="${d.id}">
+      <div class="ic" style="background:#f4edd9">${d.icon}</div>
+      <div class="nm"><b>${esc(d.title)}</b><small>${esc(d.filename)} · ${d.pages ? d.pages + ' 页 · ' : ''}${humanSize(d.size_bytes)} · 上传于 ${ago(d.uploaded_at)}</small></div>
+      <div class="meta">
+        ${d.analyzed ? '<span class="dtag g">✨ 已分析</span>' : ''}
+        ${d.indexed ? '<span class="dtag b">🧬 已索引</span>' : '<span class="dtag">未索引</span>'}
+        <span style="min-width:34px;text-align:right">${d.fmt.toUpperCase()}</span>
+      </div>
+      <select class="input fd-cat" data-id="${d.id}" title="所属文件夹" style="width:110px;padding:4px 8px;font-size:11.5px;flex-shrink:0">${catOpts(d)}</select>
+      <div class="acts">
+        <button class="tb-btn" data-v="view" title="查看原文" style="width:26px;height:26px;min-width:26px">📄</button>
+        <button class="tb-btn" data-v="open" title="打开 AI 分析" style="width:26px;height:26px;min-width:26px">📖</button>
+        <button class="tb-btn" data-v="rename" title="重命名" style="width:26px;height:26px;min-width:26px">✏️</button>
+        <button class="tb-btn" data-v="reveal" title="在访达中显示" style="width:26px;height:26px;min-width:26px">🔍</button>
+        <button class="tb-btn" data-v="del" title="删除（同时清理向量索引）" style="width:26px;height:26px;min-width:26px;color:#c0392b">🗑</button>
+      </div>
+    </div>`).join('')
+    : `<div class="fd-empty"><span style="font-size:30px;display:block;margin-bottom:8px">📂</span>
+        ${q || fmtFilter || analyzedOnly ? '没有匹配的文件' : '这个文件夹还没有文件<br>点右上角「⬆ 上传」添加'}
+      </div>`;
+  // 分类下拉：改选即移动
+  $$('#fd-list .fd-cat').forEach(sel => sel.onchange = async () => {
+    const id = +sel.dataset.id;
+    const d = documents.find(x => x.id === id);
+    try {
+      await api('/docs/' + id, {method: 'PATCH', body: {category_id: sel.value ? +sel.value : null}});
+      toast('已移动', `《${d.title}》→ ${sel.value ? (categories.find(c => c.id === +sel.value) || {}).name : '未分类'}`, 'ok');
+      loadShelf();
+    } catch (e) { showError(e); }
+  });
+  // 行内操作
+  $$('#fd-list .acts .tb-btn').forEach(btn => btn.onclick = async e => {
+    e.stopPropagation();
+    const id = +btn.closest('.fd-row').dataset.id;
+    const d = documents.find(x => x.id === id);
+    const act = btn.dataset.v;
+    try {
+      if (act === 'view') return openViewer(id);
+      if (act === 'open') return location.href = '/doc?id=' + id;
+      if (act === 'rename') {
+        const t = await XueYu.promptDialog('重命名', {value: d.title}); if (!t) return;
+        await api('/docs/' + id, {method: 'PATCH', body: {title: t}});
+        toast('已重命名', t, 'ok'); loadShelf();
+      }
+      if (act === 'reveal') await api('/docs/' + id + '/reveal', {method: 'POST', body: {}});
+      if (act === 'del') {
+        if (!(await confirmDialog('删除文档', `《${d.title}》将从书架与向量索引中一起移除，确定？`))) return;
+        await api('/docs/' + id, {method: 'DELETE'});
+        toast('已删除', d.title);
+        loadShelf();
+      }
+    } catch (e) { showError(e); }
+  });
+  // 行点击（避开控件）→ 分析页
+  $$('#fd-list .fd-row').forEach(row => {
+    row.onclick = e => {
+      if (e.target.closest('select, .acts, button')) return;
+      location.href = '/doc?id=' + row.dataset.id;
+    };
+  });
+}
+
+/* ---------- 上传（弹窗确认名称 + 分类） ---------- */
+function uploadTo(catId) { window._uploadCat = catId; $('#file-input').click(); }
+$('#upload-btn').onclick = () => uploadTo(curFolder === 'uncat' || curFolder === '__all__' ? null : curFolder);
+
+$('#file-input').onchange = async ev => {
+  const files = [...ev.target.files];
+  ev.target.value = '';
+  if (!files.length) return;
+  const cats = categories;
+  const ov = document.createElement('div');
+  ov.className = 'overlay show';
+  const catOpts = c => `<option value="" ${c == null ? 'selected' : ''}>📦 未分类</option>` +
+    cats.map(k => `<option value="${k.id}" ${c === k.id ? 'selected' : ''}>${esc(k.icon)} ${esc(k.name)}</option>`).join('');
+  ov.innerHTML = `<div class="modal" style="width:min(520px,94vw)">
+    <div class="modal-head">⬆ 上传到书架<span class="x" data-x>✕</span></div>
+    <div class="modal-body">
+      ${files.map((f, i) => `
+        <div style="margin-bottom:12px">
+          <div style="font-size:11px;font-weight:800;color:var(--dim);margin-bottom:4px">文件 ${i + 1} · ${esc(f.name)}（${humanSize(f.size)}）</div>
+          <input class="input" data-name="${i}" value="${esc(f.name.replace(/\.[^.]+$/, ''))}" placeholder="文件名">
+        </div>`).join('')}
+      <div style="font-size:11px;font-weight:800;color:var(--dim);margin-bottom:4px">分类（本批共用）</div>
+      <select class="input" id="up-cat">${catOpts(window._uploadCat)}</select>
+      <div style="font-size:11px;color:var(--dim);font-weight:700;margin-top:8px">上传后自动解析并建立检索索引。</div>
+    </div>
+    <div class="modal-foot"><button class="btn sm ghost" data-x>取消</button><button class="btn sm" data-ok>上传</button></div></div>`;
+  document.body.appendChild(ov);
+  $$('[data-x]', ov).forEach(b => b.onclick = () => ov.remove());
+  ov.onclick = e => { if (e.target === ov) ov.remove(); };
+  $('[data-ok]', ov).onclick = async () => {
+    const catId = $('#up-cat', ov).value ? parseInt($('#up-cat', ov).value) : null;
+    const names = $$('[data-name]', ov).map(inp => inp.value.trim());
+    ov.remove();
+    const t = toast('上传中…', files.map(f => f.name).join('、'), '', null, 0);
+    let okCount = 0;
+    const failed = [];
+    for (let i = 0; i < files.length; i++) {
+      const fd = new FormData();
+      fd.append('files', files[i]);
+      const qs = new URLSearchParams();
+      if (catId) qs.set('category_id', catId);
+      if (names[i]) qs.set('title', names[i]);
+      try {
+        const res = await fetch('/api/shelf/upload?' + qs.toString(), {method: 'POST', body: fd});
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || '上传失败');
+        okCount += data.documents?.length || 0;
+        (data.errors || []).forEach(er => failed.push(`${er.file}：${er.error}`));
+      } catch (e) { failed.push(`${files[i].name}：${e.message}`); }
+    }
+    t.remove();
+    if (okCount && !failed.length) {
+      toast(`已添加 ${okCount} 份文档 📚`, '解析与索引在后台进行', 'ok');
+    } else if (okCount && failed.length) {
+      toast(`已添加 ${okCount} 份，${failed.length} 份失败`, failed.join('\n').slice(0, 120), 'err', null, 9000);
+    } else if (failed.length) {
+      toast('上传失败', failed.join('\n').slice(0, 160), 'err', null, 9000);
+    }
+    loadShelf();
+  };
+};
+
+/* ---------- 文件夹管理（重命名 / ↑↓ 排序 / 删除） ---------- */
+$('#folder-mgr').onclick = async () => {
+  const cats = categories;
+  const ov = document.createElement('div');
+  ov.className = 'overlay show';
+  let order = cats.map(c => c.id);
+
+  const save = async () => {
+    try {
+      await api('/shelf/category/reorder', {method: 'POST', body: {ids: order}});
+      for (const id of order) {
+        const name = ov.querySelector(`input[data-n="${id}"]`).value.trim();
+        const c = cats.find(x => x.id === id);
+        if (name && name !== c.name) await api('/shelf/category/' + id, {method: 'PUT', body: {name}});
+      }
+      ov.remove(); toast('文件夹已更新', '', 'ok'); loadShelf();
+    } catch (e) { showError(e); }
+  };
+
+  const render = () => {
+    ov.innerHTML = `<div class="modal" style="width:min(440px,92vw)">
+      <div class="modal-head">⚙ 管理文件夹<span class="x" data-x>✕</span></div>
+      <div class="modal-body">
+        ${order.map((id, idx) => { const c = cats.find(x => x.id === id); return `
+          <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px">
+            <button class="tb-btn" data-up="${id}" ${idx === 0 ? 'disabled' : ''} title="上移" style="width:26px;height:26px;min-width:26px">↑</button>
+            <input class="input" data-n="${id}" value="${esc(c.name)}" style="flex:1;padding:6px 10px;font-size:12.5px">
+            <button class="tb-btn" data-del="${id}" title="删除" style="width:26px;height:26px;min-width:26px">🗑</button>
+          </div>`; }).join('')}
+        <div style="font-size:11px;color:var(--dim);font-weight:700;margin-top:6px">删除文件夹：里面的文件自动归入「未分类」。</div>
+      </div>
+      <div class="modal-foot"><button class="btn sm" data-save>保存</button><button class="btn sm ghost" data-x>取消</button></div></div>`;
+    $$('[data-save]', ov).forEach(b => b.onclick = save);
+    $$('[data-x]', ov).forEach(b => b.onclick = () => { ov.remove(); loadShelf(); });
+    $$('[data-up]', ov).forEach(b => b.onclick = () => {
+      const id = +b.dataset.up;
+      const i = order.indexOf(id);
+      if (i > 0) { [order[i - 1], order[i]] = [order[i], order[i - 1]]; render(); }
+    });
+    $$('[data-del]', ov).forEach(b => b.onclick = async () => {
+      const id = +b.dataset.del;
+      const c = cats.find(x => x.id === id);
+      const n = documents.filter(d => d.category_id === id).length;
+      if (!(await confirmDialog('删除文件夹', `「${c.name}」${n ? `里有 ${n} 份文件，` : ''}删除后这些文件会自动归入「未分类」，确定？`))) return;
+      try { await api('/shelf/category/' + id, {method: 'DELETE'}); toast('文件夹已删除', c.name); render(); loadShelf(); } catch (e) { showError(e); }
+    });
+  };
+  document.body.appendChild(ov);
+  render();
+};
+
+$('#folder-add').onclick = async () => {
+  const name = await XueYu.promptDialog('新建文件夹', {label: '名称'}); if (!name) return;
+  await api('/shelf/category', {method: 'POST', body: {name: name.trim(), icon: '📂'}});
+  loadShelf();
+};
+
+/* ---------- 查看原文（复用 doc 页查看器逻辑的轻量版） ---------- */
+let pdfjsReady = null;
+function ensurePdfJs() {
+  if (pdfjsReady) return pdfjsReady;
+  pdfjsReady = new Promise((res, rej) => {
+    const sc = document.createElement('script');
+    sc.src = '/vendor/pdf.min.js';
+    sc.onload = () => { pdfjsLib.GlobalWorkerOptions.workerSrc = '/vendor/pdf.worker.min.js'; res(); };
+    sc.onerror = () => rej(new Error('PDF.js 加载失败'));
+    document.head.appendChild(sc);
+  });
+  return pdfjsReady;
+}
+
+async function openViewer(docId) {
+  const doc = documents.find(x => x.id === docId) || await api('/docs/' + docId);
+  const ov = document.createElement('div');
+  ov.className = 'overlay show';
+  ov.innerHTML = `<div class="modal" style="width:min(880px,94vw);height:88vh;display:flex;flex-direction:column">
+    <div class="modal-head">
+      <span>${doc.icon}</span><b style="flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(doc.title)}</b>
+      <button class="tb-btn" id="vw-analysis" title="打开 AI 分析">📖 分析</button>
+      <span class="x" data-x>✕</span>
+    </div>
+    <div class="modal-body" id="vw-body" style="max-height:none;flex:1;overflow-y:auto;background:#f7f1e0;padding:18px"></div>
+    <div class="modal-foot" id="vw-foot" style="display:none">
+      <button class="btn sm ghost" id="vw-prev">‹ 上一页</button>
+      <span id="vw-ind" style="font-size:12px;font-weight:800;color:var(--dim)">- / -</span>
+      <button class="btn sm ghost" id="vw-next">下一页 ›</button>
+    </div></div>`;
+  document.body.appendChild(ov);
+  $$('[data-x]', ov).forEach(b => b.onclick = () => ov.remove());
+  ov.onclick = e => { if (e.target === ov) ov.remove(); };
+  $('#vw-analysis', ov).onclick = () => location.href = '/doc?id=' + docId;
+  const body = $('#vw-body', ov);
+  const info = await api(`/docs/${docId}/preview`).catch(() => null);
+  if (info && info.kind === 'pdf') {
+    try {
+      await ensurePdfJs();
+      const pdf = await pdfjsLib.getDocument(`/api/docs/${docId}/file`).promise;
+      let page = 1;
+      const renderPage = async () => {
+        const p = await pdf.getPage(page);
+        const vw = body.clientWidth - 36;
+        const vp0 = p.getViewport({scale: 1});
+        const scale = Math.min(2, Math.max(0.4, vw / vp0.width));
+        const vp = p.getViewport({scale});
+        const canvas = document.createElement('canvas');
+        canvas.width = vp.width; canvas.height = vp.height;
+        canvas.style.cssText = 'max-width:100%;box-shadow:0 6px 24px rgba(61,55,44,.25);border-radius:6px;background:#fff';
+        body.innerHTML = ''; body.appendChild(canvas);
+        await p.render({canvasContext: canvas.getContext('2d'), viewport: vp}).promise;
+        $('#vw-ind', ov).textContent = `${page} / ${pdf.numPages}`;
+      };
+      $('#vw-foot', ov).style.display = 'flex';
+      $('#vw-prev', ov).onclick = () => { if (page > 1) { page--; renderPage(); } };
+      $('#vw-next', ov).onclick = () => { if (page < pdf.numPages) { page++; renderPage(); } };
+      await renderPage();
+    } catch (e) {
+      body.innerHTML = `<div class="fd-empty">PDF 渲染失败：${esc(e.message)}<br><a class="btn sm" style="margin-top:8px;display:inline-block" href="/api/docs/${docId}/file" target="_blank">下载原文件</a></div>`;
+    }
+    return;
+  }
+  if (info && info.kind === 'md') {
+    const div = document.createElement('div');
+    div.className = 'md';
+    div.style.cssText = 'max-width:760px;margin:0 auto';
+    div.innerHTML = md(info.text || '（空文档）');
+    body.appendChild(div);
+    return;
+  }
+  if (info && info.kind === 'html') {
+    const div = document.createElement('div');
+    div.className = 'md';
+    div.style.cssText = 'max-width:760px;margin:0 auto';
+    div.innerHTML = DOMPurify.sanitize(info.html || '');
+    div.querySelectorAll('table').forEach(t => { t.style.cssText = 'border-collapse:collapse;width:100%;font-size:12.5px;margin:10px 0'; });
+    div.querySelectorAll('th,td').forEach(c => { c.style.cssText = 'border:1.5px solid #3d372c;padding:6px 10px;text-align:left'; });
+    div.querySelectorAll('th').forEach(c => { c.style.background = '#f4edd9'; });
+    body.appendChild(div);
+    return;
+  }
+  const full = await api(`/docs/${docId}?with_text=1`);
+  const pre = document.createElement('pre');
+  pre.style.cssText = 'white-space:pre-wrap;font-size:13px;line-height:1.8;font-family:inherit;max-width:760px;margin:0 auto';
+  pre.textContent = (full.text || '（无可显示内容）').slice(0, 100000);
+  body.appendChild(pre);
+}
+
+/* ---------- 工具条筛选 ---------- */
+$('#fd-search').addEventListener('input', XueYu.debounce(ev => { q = ev.target.value.toLowerCase(); renderFiles(); }, 200));
+$$('.fd-tools .chip').forEach(ch => ch.onclick = () => {
+  if (ch.dataset.fmt !== undefined) {
+    fmtFilter = ch.dataset.fmt;
+    $$('.fd-tools .chip[data-fmt]').forEach(c => c.classList.toggle('on', c === ch));
+  } else if (ch.dataset.analyzed) {
+    analyzedOnly = !analyzedOnly; ch.classList.toggle('on', analyzedOnly);
+  }
+  renderFiles();
+});
+$('#reindex-btn').onclick = async () => {
+  try { await api('/shelf/reindex', {method: 'POST', body: {}}); toast('索引重建已开始', '进度会在下方实时刷新', 'ok'); }
+  catch (e) { showError(e); }
+};
+setInterval(async () => {
+  const idx = await api('/shelf/index/status').catch(() => null);
+  if (idx) renderRAG(idx);
+}, 3000);
+
+window.pageSearch = () => { $('#fd-search').focus(); };
+loadShelf().catch(showError);
+</script>
+</body>
+</html>

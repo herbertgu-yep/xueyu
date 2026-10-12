@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>学屿 · 文档分析</title>
+<link rel="stylesheet" href="/mac.css">
+<link rel="stylesheet" href="/app.css">
+<link rel="stylesheet" href="/vendor/katex/katex.min.css">
+<style>
+  .doc-head{display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+  .doc-head .big-ic{width:66px;height:66px;border-radius:17px;border:2px solid var(--ink);background:#ffe3c2;display:flex;align-items:center;justify-content:center;font-size:33px;transform:rotate(-3deg);flex-shrink:0}
+  .doc-head .info{flex:1;min-width:240px}
+  .doc-head h1{font-size:20px;font-weight:850}
+  .doc-head .meta{font-size:12px;color:var(--dim);margin-top:6px;display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+  .doc-head .acts{display:flex;gap:8px;flex-wrap:wrap}
+  .mindmap-wrap{overflow-x:auto;padding:8px 0}
+  details.quiz{background:#fff;border:2px solid var(--ink);border-radius:12px 4px 13px 5px;padding:13px 17px;margin-bottom:10px}
+  details.quiz summary{cursor:pointer;font-size:13.5px;font-weight:700;list-style:none;display:flex;gap:10px;align-items:baseline}
+  details.quiz summary::-webkit-details-marker{display:none}
+  details.quiz summary .qn{font-size:10.5px;font-weight:800;color:#fff;background:var(--blu);border-radius:7px;padding:1px 8px;flex-shrink:0}
+  details.quiz summary .hint{margin-left:auto;font-size:11px;color:var(--dim);font-weight:700;flex-shrink:0}
+  details.quiz[open] summary .hint{color:var(--grn)}
+  details.quiz .ans{margin-top:12px;border-top:2px dashed #e0d6bd;font-size:12.5px;color:#4f5847;background:#f4fbf1;border-radius:8px;padding:11px 13px}
+  .qa{display:flex;flex-direction:column;gap:11px}
+  .q-bub,.a-bub{max-width:84%;padding:11px 15px;font-size:13px;border:2px solid var(--ink)}
+  .q-bub{align-self:flex-end;background:#e3edfd;border-radius:15px 4px 15px 4px}
+  .a-bub{align-self:flex-start;background:#fff;border-radius:4px 15px 4px 15px}
+  .a-bub .who{font-size:10.5px;font-weight:800;color:var(--blu);margin-bottom:4px}
+  .a-bub .src{margin-top:8px;font-size:10.5px;color:var(--dim)}
+  .ask{display:flex;gap:10px;margin-top:13px}
+  .ask .input{flex:1}
+  .sec-head-btns{float:right;display:flex;gap:8px}
+  .loading{opacity:.55;pointer-events:none}
+  @media(max-width:760px){.q-bub,.a-bub{max-width:100%}}
+</style>
+</head>
+<body data-page="shelf">
+<div class="app-shell">
+  <header class="app-header" id="app-header" data-title="📕 文档分析">
+      <span class="app-title"><span class="ico">🏝️</span> 学屿</span>
+      <span class="sep-v"></span>
+      <span class="page-title">📕 文档分析</span>
+      <div class="tb-tools">
+        <button class="tb-btn" id="global-search" title="全局搜索 ⌘K">🔍</button>
+      <div id="page-tools"><button class="tb-btn" id="reveal-btn">🗂 在访达中显示</button>
+      <button class="tb-btn" id="open-file-btn">⬇ 原文件</button>
+      <button class="tb-btn" id="reanalyze-btn">↻ 重新分析</button></div>
+      </div>
+    </header>
+  <div class="app">
+    <aside class="sidebar" id="app-sidebar">
+        <div class="side-head" style="display:flex;align-items:center;padding:2px 6px 8px;border-bottom:2px dashed #e0d6bd;margin-bottom:6px">
+          <b style="font-size:12px;color:var(--dim);letter-spacing:1px">学屿</b>
+          <button class="tb-btn" id="side-collapse" title="收起侧边栏" style="margin-left:auto;width:26px;height:26px;min-width:26px">◧</button>
+        </div>
+        <div class="side-label">今天</div>
+        <a class="side-it" href="/" data-nav="index" title="今日清单"><span class="ico2">☀️</span><span class="txt">今日清单</span><span class="cnt" id="cnt-today"></span></a>
+        <a class="side-it" href="/plan" data-nav="plan" title="学习计划"><span class="ico2">📅</span><span class="txt">学习计划</span><span class="cnt" id="cnt-plans"></span></a>
+        <div class="side-label">学习资产</div>
+        <a class="side-it" href="/notes" data-nav="notes" title="笔记"><span class="ico2">📝</span><span class="txt">笔记</span><span class="cnt" id="cnt-notes"></span></a>
+        <a class="side-it" href="/shelf" data-nav="shelf" title="书架"><span class="ico2">📚</span><span class="txt">书架</span><span class="cnt" id="cnt-shelf"></span></a>
+        <a class="side-it" href="/research" data-nav="research" title="深度研究"><span class="ico2">🔬</span><span class="txt">深度研究</span><span class="cnt" id="cnt-research"></span></a>
+        <a class="side-it" href="/settings" data-nav="settings" style="margin-top:auto">⚙️ 设置</a>
+      </aside>
+    <main class="main" id="main">
+      <!-- 文档信息 -->
+      <section class="sec">
+        <div class="card doc-head" id="doc-head">
+          <div class="big-ic" id="doc-icon">📕</div>
+          <div class="info">
+            <h1 id="doc-title">加载中…</h1>
+            <div class="meta" id="doc-meta"></div>
+          </div>
+          <div class="acts">
+            <button class="btn sm" id="to-plan-btn">📅 加入复习计划</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- AI 摘要 -->
+      <section class="sec" id="sum">
+        <span class="tape t-org">📌 AI 摘要 · 划重点</span>
+        <div class="sec-body card md" id="summary-body"><div class="empty"><span class="big">🤖</span>还没有摘要</div></div>
+      </section>
+
+      <!-- 思维导图 -->
+      <section class="sec" id="map">
+        <span class="tape t-blu">🧠 思维导图</span>
+        <div class="sec-body card mindmap-wrap" id="mindmap-body"><div class="empty"><span class="big">🗺</span>还没有思维导图</div></div>
+      </section>
+
+      <!-- 自测题 -->
+      <section class="sec" id="quiz">
+        <span class="tape t-pnk">✏️ 考点自测 · 点一下看答案</span>
+        <div class="sec-body" id="quiz-body"><div class="empty card"><span class="big">📝</span>还没有自测题</div></div>
+      </section>
+
+      <!-- 问 AI -->
+      <section class="sec" id="qa">
+        <span class="tape t-grn">💬 就这份文档，问 AI 点什么（基于文档全文回答）</span>
+        <div class="sec-body card qa">
+          <div id="qa-history"></div>
+          <div class="ask">
+            <input class="input" placeholder="基于这份文档提问，比如：这章的高频考点是什么？" id="qa-input">
+            <button class="btn blu sm" id="qa-send" style="padding:10px 18px;white-space:nowrap">发送 ↑</button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<script src="/vendor/marked.min.js"></script>
+<script src="/vendor/purify.min.js"></script>
+<script src="/vendor/d3.min.js"></script>
+<script src="/vendor/markmap-lib.js"></script>
+<script src="/vendor/markmap-view.js"></script>
+<script src="/vendor/katex/katex.min.js"></script>
+<script src="/vendor/katex/auto-render.min.js"></script>
+<script src="/app.js"></script>
+<script>
+// 标识符（$ / api / toast / esc 等）由 app.js 全局提供
+let doc = null;
+
+async function loadDoc() {
+  const id = new URLSearchParams(location.search).get('id');
+  if (!id) { $('#doc-title').textContent = '未指定文档'; return; }
+  doc = await api('/docs/' + id);
+  document.title = '学屿 · ' + doc.title;
+  $('#doc-title').innerHTML = `<span class="hl">${esc(doc.title)}</span>`;
+  $('#doc-icon').textContent = doc.icon;
+  $('#doc-meta').innerHTML = `
+    ${doc.pages ? `<span>${doc.pages} 页</span>` : ''}<span>${doc.size_human}</span><span>${doc.fmt.toUpperCase()}</span>
+    <span>上传于 ${ago(doc.uploaded_at)}</span>
+    ${doc.analyzed ? '<span class="dtag g">✨ AI 已分析</span>' : '<span class="dtag o">未分析</span>'}
+    ${doc.indexed ? `<span class="dtag b">🧬 已向量化 · ${doc.chunk_count} 块</span>` : '<span class="dtag">未向量化</span>'}`;
+  renderAnalysis();
+}
+
+function renderAnalysis() {
+  if (doc.summary_md) mdRender($('#summary-body'), doc.summary_md);
+  else $('#summary-body').innerHTML = `<div class="empty"><span class="big">🤖</span>还没有摘要
+    <br><button class="btn sm" style="margin-top:8px" onclick="analyze('summary')">✨ 生成 AI 摘要</button></div>`;
+  if (doc.mindmap) renderMindmap($('#mindmap-body'), doc.mindmap);
+  else $('#mindmap-body').innerHTML = `<div class="empty"><span class="big">🗺</span>还没有思维导图
+    <br><button class="btn sm blu" style="margin-top:8px" onclick="analyze('mindmap')">🧠 生成思维导图</button></div>`;
+  if (doc.quiz?.length) {
+    $('#quiz-body').innerHTML = doc.quiz.map((q, i) => `
+      <details class="quiz"><summary><span class="qn">Q${i + 1}</span>${esc(q.question)}<span class="hint">点击看答案 ▾</span></summary>
+        <div class="ans md" id="quiz-ans-${i}"></div></details>`).join('');
+    doc.quiz.forEach((q, i) => mdRender($('#quiz-ans-' + i), q.answer));
+  } else {
+    $('#quiz-body').innerHTML = `<div class="empty card"><span class="big">📝</span>还没有自测题
+      <br><button class="btn sm pnk" style="margin-top:8px" onclick="analyze('quiz')">✏️ 生成考点自测题</button></div>`;
+  }
+}
+
+async function analyze(kind) {
+  const ov = await api('/overview').catch(() => null);
+  if (ov && !ov.ai_configured) {
+    return toast('请先在「设置」中配置 AI 模型', '配置后即可生成摘要、导图与自测题', 'err', () => location.href = '/settings', 8000);
+  }
+  const target = {summary: '#summary-body', mindmap: '#mindmap-body', quiz: '#quiz-body'}[kind];
+  if (target) $(target).insertAdjacentHTML('beforeend', '<div class="loading-note" style="text-align:center;padding:8px;color:var(--dim);font-weight:700">AI 处理中…</div>');
+  try {
+    doc = await api(`/docs/${doc.id}/analyze`, {method: 'POST', body: {kind}});
+    toast('分析完成 ✨', doc.title, 'ok');
+  } catch (e) {
+    if (target) $(target).insertAdjacentHTML('beforeend', `<div style="text-align:center;color:var(--org);font-weight:700;padding:6px">${esc(e.message)}</div>`);
+    showError(e);
+  }
+  $$('#main .loading-note').forEach(n => n.remove());
+  renderAnalysis();
+  bootShell();
+}
+window.analyze = analyze;
+
+/* 问答 */
+async function sendQA() {
+  const q = $('#qa-input').value.trim(); if (!q || !doc) return;
+  $('#qa-input').value = '';
+  const hist = $('#qa-history');
+  hist.insertAdjacentHTML('beforeend', `<div class="q-bub">${esc(q)}</div>`);
+  const ab = document.createElement('div');
+  ab.className = 'a-bub';
+  ab.innerHTML = '<div class="who">✨ AI 助手</div>检索文档中…';
+  hist.appendChild(ab);
+  $('#qa-input').disabled = true;
+  try {
+    const r = await api(`/docs/${doc.id}/ask`, {method: 'POST', body: {question: q}});
+    ab.innerHTML = `<div class="who">✨ AI 助手</div><div class="md" id="qa-md"></div>
+      ${r.sources?.length ? `<div class="src">📎 基于文档 ${r.sources.length} 个片段（向量检索${r.sources[0].score != null ? ' · top similarity ' + r.sources[0].score : ''}）</div>` : ''}`;
+    mdRender($('#qa-md', ab), r.answer);
+    hist.appendChild(ab); hist.scrollTop = 1e6;
+  } catch (e) {
+    ab.innerHTML = `<div class="who">✨ AI 助手</div><span style="color:var(--org)">${esc(e.message)}</span>`;
+  }
+  $('#qa-input').disabled = false;
+  $('#qa-input').focus();
+}
+$('#qa-send').onclick = sendQA;
+$('#qa-input').addEventListener('keydown', e => { if (e.key === 'Enter') sendQA(); });
+
+/* 访达 / 原文件 / 重新分析 */
+XueYu.onPageTools(() => {
+  $('#reveal-btn').onclick = async () => { try { await api(`/docs/${doc.id}/reveal`, {method: 'POST', body: {}}); } catch (e) { showError(e); } };
+  $('#open-file-btn').onclick = () => window.open(`/api/docs/${doc.id}/file`, '_blank');
+  $('#reanalyze-btn').onclick = () => analyze('all');
+});
+$('#to-plan-btn').onclick = async () => {
+  const withCards = await XueYu.confirmDialog('加入复习计划', '让 AI 依据文档生成复习卡片？（取消则仅用摘要/原文作素材）');
+  try {
+    await api(`/docs/${doc.id}/plan`, {method: 'POST', body: {daily_minutes: 30, generate_flashcards: withCards}});
+    toast('已加入复习计划 📅', '到「学习计划」查看排期', 'ok');
+  } catch (e) { showError(e); }
+};
+
+loadDoc().catch(showError);
+</script>
+</body>
+</html>

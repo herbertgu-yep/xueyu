@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>学屿 · 研究报告</title>
+<link rel="stylesheet" href="/mac.css">
+<link rel="stylesheet" href="/app.css">
+<link rel="stylesheet" href="/vendor/katex/katex.min.css">
+<style>
+  .rep-head h1{font-size:21px;font-weight:850;line-height:1.4}
+  .rep-meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+  .rep-acts{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+  .layout{display:grid;grid-template-columns:1fr 220px;gap:16px;align-items:start}
+  .toc{position:sticky;top:20px;font-size:13px}
+  .toc b{font-size:13px;display:block;margin-bottom:8px}
+  .toc a{display:block;padding:6px 0 6px 12px;border-left:3px solid #e0d6bd;color:#6b6353;font-size:12px;font-weight:600;cursor:pointer}
+  .toc a:hover,.toc a.on{border-color:var(--org);color:var(--ink)}
+  article.card{padding:24px 30px}
+  article h2{font-size:17px;margin:24px 0 10px}
+  article h2:first-of-type{margin-top:0}
+  article p{font-size:13.5px;margin-bottom:12px;line-height:1.9}
+  .warn{background:#fff3d6;border:2px solid var(--ink);border-radius:12px 4px 13px 5px;padding:13px 17px;margin:15px 0;font-size:12.5px}
+  .warn b{color:#9a6a00}
+  .refs{margin-top:8px;font-size:12px;color:#6b6353}
+  .refs li{list-style:none;padding:7px 0;border-bottom:1px dashed #e0d6bd;display:flex;gap:10px}
+  .refs li b{color:var(--blu);flex-shrink:0;cursor:pointer}
+  .refs li span{flex:1}
+  .refs li em{font-style:normal;color:var(--dim);flex-shrink:0}
+  .follow{display:flex;gap:10px;margin-top:18px}
+  .follow .input{flex:1}
+  .conflict-card{background:#fff;border:2px solid var(--ink);border-radius:12px 4px 13px 5px;padding:12px 16px;margin-bottom:10px;font-size:12.5px}
+  @media(max-width:880px){.layout{grid-template-columns:1fr}.toc{position:static;display:flex;gap:12px;overflow-x:auto}.toc a{border-left:none;border-bottom:3px solid #e0d6bd;white-space:nowrap}}
+</style>
+</head>
+<body data-page="research">
+<div class="app-shell">
+  <header class="app-header" id="app-header" data-title="📰 研究报告">
+      <span class="app-title"><span class="ico">🏝️</span> 学屿</span>
+      <span class="sep-v"></span>
+      <span class="page-title">📰 研究报告</span>
+      <div class="tb-tools">
+        <button class="tb-btn" id="global-search" title="全局搜索 ⌘K">🔍</button>
+      <div id="page-tools"><button class="tb-btn" id="export-md">⬇ MD</button>
+      <button class="tb-btn" id="export-pdf">⬇ PDF</button></div>
+      </div>
+    </header>
+  <div class="app">
+    <aside class="sidebar" id="app-sidebar">
+        <div class="side-head" style="display:flex;align-items:center;padding:2px 6px 8px;border-bottom:2px dashed #e0d6bd;margin-bottom:6px">
+          <b style="font-size:12px;color:var(--dim);letter-spacing:1px">学屿</b>
+          <button class="tb-btn" id="side-collapse" title="收起侧边栏" style="margin-left:auto;width:26px;height:26px;min-width:26px">◧</button>
+        </div>
+        <div class="side-label">今天</div>
+        <a class="side-it" href="/" data-nav="index" title="今日清单"><span class="ico2">☀️</span><span class="txt">今日清单</span><span class="cnt" id="cnt-today"></span></a>
+        <a class="side-it" href="/plan" data-nav="plan" title="学习计划"><span class="ico2">📅</span><span class="txt">学习计划</span><span class="cnt" id="cnt-plans"></span></a>
+        <div class="side-label">学习资产</div>
+        <a class="side-it" href="/notes" data-nav="notes" title="笔记"><span class="ico2">📝</span><span class="txt">笔记</span><span class="cnt" id="cnt-notes"></span></a>
+        <a class="side-it" href="/shelf" data-nav="shelf" title="书架"><span class="ico2">📚</span><span class="txt">书架</span><span class="cnt" id="cnt-shelf"></span></a>
+        <a class="side-it" href="/research" data-nav="research" title="深度研究"><span class="ico2">🔬</span><span class="txt">深度研究</span><span class="cnt" id="cnt-research"></span></a>
+        <a class="side-it" href="/settings" data-nav="settings" style="margin-top:auto">⚙️ 设置</a>
+      </aside>
+    <main class="main" id="main">
+      <section class="sec">
+        <div class="card rep-head">
+          <h1 id="rep-title">加载中…</h1>
+          <div class="rep-meta" id="rep-meta"></div>
+          <div class="rep-acts">
+            <button class="btn sm grn" id="to-note">📝 存入笔记</button>
+            <button class="btn sm ylw" id="to-plan">📅 按报告生成复习计划</button>
+          </div>
+        </div>
+      </section>
+      <div class="layout">
+        <div>
+          <article class="card md" id="report-body"></article>
+          <section class="sec" style="margin-top:16px">
+            <span class="tape t-pnk">💬 就这份报告继续追问</span>
+            <div class="sec-body card">
+              <div id="follow-history"></div>
+              <div class="follow">
+                <input class="input" placeholder="比如：把某个策略展开讲讲 / 数据是怎么得出" id="follow-input">
+                <button class="btn blu sm" id="follow-send" style="padding:10px 18px;white-space:nowrap">追问 ↑</button>
+              </div>
+            </div>
+          </section>
+        </div>
+        <aside class="card toc no-print">
+          <b>📑 目录</b>
+          <div id="toc-list"></div>
+        </aside>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script src="/vendor/marked.min.js"></script>
+<script src="/vendor/purify.min.js"></script>
+<script src="/vendor/katex/katex.min.js"></script>
+<script src="/vendor/katex/auto-render.min.js"></script>
+<script src="/app.js"></script>
+<script>
+// 标识符（$ / api / toast / esc 等）由 app.js 全局提供
+let task = null, followHistory = [];
+
+async function loadReport() {
+  const id = new URLSearchParams(location.search).get('id');
+  if (!id) { $('#rep-title').textContent = '未指定报告'; return; }
+  task = await api('/research/' + id + '?with_report=1');
+  if (!task.report_md) { location.href = '/research'; return; }
+  document.title = '学屿 · ' + (task.report_title || task.query);
+  const meta = task.report || {};
+  $('#rep-title').innerHTML = `<span class="hl b">${esc(task.report_title || task.query)}</span>`;
+  $('#rep-meta').innerHTML = `
+    <span class="dtag b">🌐 工作区：${esc(wsLabel(task))}</span>
+    <span class="dtag b">🔍 ${task.sources_visited} 个信源</span>
+    <span class="dtag g">🧾 ${(meta.citations || []).length} 条引用</span>
+    <span class="dtag o">📝 约 ${(task.report_word_count / 1000).toFixed(1)} 千字</span>
+    ${task.conflicts_found ? `<span class="dtag" style="background:#ffe9c7">⚖️ ${task.conflicts_found} 处信源冲突</span>` : ''}
+    <span class="dtag">${ago(task.finished_at)}完成</span>`;
+  renderBody(task.report_md, meta);
+}
+
+const wsLabel = t => ({web: '全网', notes: '笔记', docs: '书架文件', shelf_rag: '书架RAG'}[t.workspace?.type] || t.workspace?.type);
+
+function renderBody(reportMd, meta) {
+  // 引用 [n] → 上标
+  let body = reportMd.replace(/\[(\d{1,2})\]/g, (m, n) => `<sup class="cite" data-ref="${n}">${n}</sup>`);
+  // 参考文献单独渲染
+  const idx = body.indexOf('## 参考文献');
+  let refsHtml = '';
+  if (idx >= 0) {
+    body = body.slice(0, idx);
+    refsHtml = `<h2 id="refs">参考文献</h2><ul class="refs">` +
+      (meta.citations || []).map(c => `<li data-ref="${c.ref_id}"><b>[${c.ref_id}]</b><span>${esc(c.title)}
+        ${c.url && !c.url.startsWith(('doc://')) && !c.url.startsWith('note://') ? `<a href="${esc(c.url)}" target="_blank" rel="noopener" style="color:var(--blu)">${esc(shortUrl(c.url))}</a>` : ''}
+        </span><em>${c.origin === 'web' ? '网络' : c.origin === 'doc' ? '书架文档' : '笔记'}</em></li>`).join('') + `</ul>`;
+  }
+  const conflicts = meta.conflicts || [];
+  const conflictsHtml = conflicts.length ? `<div class="warn">⚠️ <b>信源冲突提示：</b>Agent 在交叉验证时发现 ${conflicts.length} 处关键分歧，已在正文并列标注，未擅自裁决。</div>` +
+    conflicts.map(c => `<div class="conflict-card"><b>⚖️ ${esc(c.topic)}</b><br>
+      观点 A：${esc(c.side_a)} <sup class="cite">${(c.refs_a || []).join('][')}</sup><br>
+      观点 B：${esc(c.side_b)} <sup class="cite">${(c.refs_b || []).join('][')}</sup>
+      ${c.note ? `<br><span style="color:var(--dim)">${esc(c.note)}</span>` : ''}</div>`).join('') : '';
+  mdRender($('#report-body'), body);
+  // 在第一个 h2 后插入冲突卡片
+  if (conflicts.length) {
+    const h2 = $('#report-body h2');
+    if (h2) h2.insertAdjacentHTML('afterend', conflictsHtml);
+    else $('#report-body').insertAdjacentHTML('beforeend', conflictsHtml);
+  }
+  $('#report-body').insertAdjacentHTML('beforeend', refsHtml);
+  // 目录
+  const heads = $$('#report-body h2');
+  $('#toc-list').innerHTML = heads.map((h, i) => `<a data-i="${i}">${esc(h.textContent)}</a>`).join('')
+    + `<a data-i="refs">参考文献（${(meta.citations || []).length} 条）</a>`;
+  $$('#toc-list a').forEach(a => a.onclick = () => {
+    const target = a.dataset.i === 'refs' ? $('#refs') : heads[+a.dataset.i];
+    target?.scrollIntoView({behavior: 'smooth', block: 'start'});
+  });
+  // 引用上标 → 滚到参考文献
+  $$('#report-body sup.cite').forEach(sup => sup.onclick = () =>
+    $('#report-body li[data-ref="' + sup.dataset.ref + '"]')?.scrollIntoView({behavior: 'smooth'}));
+  $$('#report-body .refs li b').forEach(b => b.onclick = () => toast('信源 #' + b.textContent, $('#report-body li[data-ref="' + b.textContent.replace(/[\[\]]/g, '') + '"] span')?.textContent.slice(0, 80) || ''));
+}
+const shortUrl = u => u.replace(/^https?:\/\/(www\.)?/, '').slice(0, 60);
+
+/* 追问 */
+async function sendFollow() {
+  const q = $('#follow-input').value.trim(); if (!q) return;
+  $('#follow-input').value = '';
+  $('#follow-history').insertAdjacentHTML('beforeend',
+    `<div class="q-bub" style="max-width:84%;padding:11px 15px;font-size:13px;border:2px solid var(--ink);align-self:flex-end;background:#e3edfd;border-radius:15px 4px 15px 4px;margin-left:auto;margin-bottom:10px;width:fit-content">${esc(q)}</div>`);
+  const box = document.createElement('div');
+  box.className = 'a-bub'; box.style.cssText = 'max-width:100%;padding:11px 15px;font-size:13px;border:2px solid var(--ink);border-radius:4px 15px 4px 15px;margin-bottom:10px';
+  box.innerHTML = '<div class="who" style="font-size:10.5px;font-weight:800;color:var(--blu);margin-bottom:4px">✨ AI 助手</div><div class="md" id="follow-md">思考中…</div>';
+  $('#follow-history').appendChild(box);
+  try {
+    const r = await api(`/research/${task.id}/followup`, {method: 'POST', body: {question: q, history: followHistory.slice(-6)}});
+    mdRender($('#follow-md', box), r.answer);
+    followHistory.push({role: 'user', content: q}, {role: 'assistant', content: r.answer});
+  } catch (e) { $('#follow-md', box).innerHTML = `<span style="color:var(--org)">${esc(e.message)}</span>`; }
+}
+$('#follow-send').onclick = sendFollow;
+$('#follow-input').addEventListener('keydown', e => { if (e.key === 'Enter') sendFollow(); });
+
+/* 导出与沉淀 */
+XueYu.onPageTools(() => {
+  $('#export-md').onclick = exportMD;
+  $('#export-pdf').onclick = exportPDF;
+});
+async function exportMD() {
+  const text = await api(`/research/${task.id}/export`);
+  const blob = new Blob([text], {type: 'text/markdown'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = (task.report_title || task.id) + '.md';
+  a.click();
+  toast('已导出 Markdown', a.download, 'ok');
+}
+function exportPDF() {
+  toast('在打印对话框中选择「存储为 PDF」', '排版已按打印样式优化', '', null, 6000);
+  setTimeout(() => window.print(), 600);
+}
+$('#to-note').onclick = async () => {
+  try {
+    const note = await api(`/research/${task.id}/note`, {method: 'POST', body: {}});
+    toast('已存入笔记 📝', note.title, 'ok', () => location.href = '/notes?id=' + note.id);
+  } catch (e) { showError(e); }
+};
+$('#to-plan').onclick = async () => {
+  if (!(await confirmDialog('生成复习计划', '将依据报告核心内容生成一条艾宾浩斯复习计划（含 AI 卡片，若模型可用）。'))) return;
+  try {
+    const plan = await api(`/research/${task.id}/plan`, {method: 'POST', body: {}});
+    toast('复习计划已创建 📅', plan.title, 'ok', () => location.href = '/plan');
+  } catch (e) { showError(e); }
+};
+
+loadReport().catch(showError);
+</script>
+</body>
+</html>

@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+dist/
+build/
+
+# 学屿本地数据
+data/
+
+# macOS
+.DS_Store
+
+
+# 构建与日志
+*.log
+
+# 会话与本地工具（绝不入库）
+.workbuddy/
+.zcodeignore
+
+# ZCode 会话分享产物（绝不入库）
+.zcode-share/

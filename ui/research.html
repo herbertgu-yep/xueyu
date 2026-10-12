@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>学屿 · 深度研究</title>
+<link rel="stylesheet" href="/mac.css">
+<link rel="stylesheet" href="/app.css">
+<style>
+  .ask-card{padding:20px 24px 16px}
+  .ask-card textarea{width:100%;border:none;outline:none;resize:none;background:transparent;font-size:15.5px;line-height:1.8;min-height:80px}
+  .ask-card textarea::placeholder{color:#c2b89f}
+  .ask-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 0;border-top:2px dashed #e0d6bd}
+  .ask-row .lab{font-size:12px;font-weight:800;color:var(--dim)}
+  .ask-row .right{margin-left:auto;display:flex;gap:12px;align-items:center}
+  .time-note{font-size:11.5px;color:var(--dim);font-weight:700}
+  .ws em{font-style:normal;font-size:10px;background:var(--ink);color:#fff;border-radius:6px;padding:0 5px;margin-left:2px}
+  .ws-desc{font-size:12px;background:#eef3fb;border:2px dashed #b9cbe8;border-radius:10px;padding:9px 14px;color:#41568a;margin:2px 0 4px}
+  .ws-desc b{color:#2c3f6e}
+  .res-grid{display:grid;grid-template-columns:320px 1fr;gap:16px;align-items:start;margin-top:6px}
+  .task-list{display:flex;flex-direction:column;gap:10px}
+  .rt-card{background:var(--card);border:2px solid var(--ink);border-radius:var(--hw);padding:13px 16px;box-shadow:3px 3px 0 rgba(61,55,44,.12);cursor:pointer;display:block}
+  .rt-card.on{box-shadow:3px 3px 0 var(--ink);background:#fff}
+  .rt-card .rt-del:hover{opacity:1 !important}
+  .rt-card b{font-size:12.5px;display:block}
+  .rt-card span{font-size:11px;color:var(--dim)}
+  .rt-card .st{margin-top:6px;display:flex;gap:6px;align-items:center}
+  .log{position:relative;margin:6px 0 0 8px;padding-left:22px;max-height:420px;overflow-y:auto}
+  .log::before{content:"";position:absolute;left:5px;top:6px;bottom:6px;width:2px;background:#ddd2b8}
+  .log-it{position:relative;padding:6px 0;font-size:12.5px}
+  .log-it::before{content:"";position:absolute;left:-21px;top:11px;width:9px;height:9px;border-radius:50%;border:2px solid var(--ink);background:#fff}
+  .log-it.ok::before{background:var(--grn)}
+  .log-it.warn::before{background:var(--ylw)}
+  .log-it.now::before{background:var(--blu);box-shadow:0 0 0 4px rgba(58,125,232,.2)}
+  .log-it .t{font-size:10.5px;color:var(--dim);font-weight:800;margin-right:8px}
+  .log-it .url{color:var(--blu);font-size:11.5px}
+  .tape-gap{margin-top:8px}
+  .chip.ws.has-sel, .chip.has-sel{background:#dff3e6;border-color:var(--grn)}
+  .chip.ws.has-sel em{background:var(--grn)}
+  @media(max-width:900px){.res-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body data-page="research">
+<div class="app-shell">
+  <header class="app-header" id="app-header" data-title="🔬 深度研究">
+      <span class="app-title"><span class="ico">🏝️</span> 学屿</span>
+      <span class="sep-v"></span>
+      <span class="page-title">🔬 深度研究 <span class="sub">拆解 → 检索 → 交叉验证 → 报告</span></span>
+      <div class="tb-tools">
+        <button class="tb-btn" id="global-search" title="全局搜索 ⌘K">🔍</button>
+      </div>
+    </header>
+  <div class="app">
+    <aside class="sidebar" id="app-sidebar">
+        <div class="side-head" style="display:flex;align-items:center;padding:2px 6px 8px;border-bottom:2px dashed #e0d6bd;margin-bottom:6px">
+          <b style="font-size:12px;color:var(--dim);letter-spacing:1px">学屿</b>
+          <button class="tb-btn" id="side-collapse" title="收起侧边栏" style="margin-left:auto;width:26px;height:26px;min-width:26px">◧</button>
+        </div>
+        <div class="side-label">今天</div>
+        <a class="side-it" href="/" data-nav="index" title="今日清单"><span class="ico2">☀️</span><span class="txt">今日清单</span><span class="cnt" id="cnt-today"></span></a>
+        <a class="side-it" href="/plan" data-nav="plan" title="学习计划"><span class="ico2">📅</span><span class="txt">学习计划</span><span class="cnt" id="cnt-plans"></span></a>
+        <div class="side-label">学习资产</div>
+        <a class="side-it" href="/notes" data-nav="notes" title="笔记"><span class="ico2">📝</span><span class="txt">笔记</span><span class="cnt" id="cnt-notes"></span></a>
+        <a class="side-it" href="/shelf" data-nav="shelf" title="书架"><span class="ico2">📚</span><span class="txt">书架</span><span class="cnt" id="cnt-shelf"></span></a>
+        <a class="side-it" href="/research" data-nav="research" title="深度研究"><span class="ico2">🔬</span><span class="txt">深度研究</span><span class="cnt" id="cnt-research"></span></a>
+        <a class="side-it" href="/settings" data-nav="settings" style="margin-top:auto">⚙️ 设置</a>
+      </aside>
+    <main class="main" id="main">
+      <!-- 新研究输入卡 -->
+      <section class="sec">
+        <span class="tape t-blu">🔬 新研究 · 抛出一个大问题</span>
+        <div class="sec-body card ask-card">
+          <textarea id="research-input" placeholder="说清楚范围、时间和关心的维度，研究越具体越好——&#10;例如：结合我书架里的论文，总结近三年 LLM Agent 记忆机制的主流方案与对比"></textarea>
+          <div class="ask-row">
+            <span class="chip grn-on" id="netChip">🌐 联网检索 · 开</span>
+            <span class="chip" id="uploadChip">📎 上传文件</span>
+            <span class="lab" style="margin-left:8px">思考程度</span>
+            <div class="seg" id="thinkSeg">
+              <button data-lv="quick">快速</button><button data-lv="standard" class="on">标准</button><button data-lv="deep">深入</button>
+            </div>
+          </div>
+          <div class="ask-row">
+            <span class="lab">工作区</span>
+            <span class="chip ws" data-ws="web">🌐 全网</span>
+            <span class="chip ws" data-ws="notes">📝 指定笔记 <em id="ws-notes-n" style="display:none">0</em></span>
+            <span class="chip ws" data-ws="docs">📄 书架文件 <em id="ws-docs-n" style="display:none">0</em></span>
+            <span class="chip ws on" data-ws="shelf_rag">📚 整个书架 · RAG</span>
+          </div>
+          <div class="ask-row">
+            <span class="lab">Agent 范式</span>
+            <div class="seg" id="paradigm-seg">
+              <button data-p="plan_execute" class="on" title="拆解→检索→补检→验证→撰写，稳">智能规划</button>
+              <button data-p="react" title="LLM 自主调用工具循环研究（Function Calling）">ReAct 循环</button>
+              <button data-p="multi_agent" title="多研究员并行，汇总裁判">多智能体</button>
+            </div>
+            <span class="chip" id="skills-chip" title="选择要启用的研究技能">🧩 技能 <em id="skills-n" style="display:none">0</em></span>
+            <span class="chip" id="mcp-chip" title="外部 MCP 工具（设置页配置）">🔌 MCP</span>
+          </div>
+          <div class="ws-desc" id="wsDesc"></div>
+          <div class="ask-row" style="border-top:none">
+            <div class="right">
+              <span class="time-note">⏱ 标准模式约 10–20 分钟 · 后台运行，完成后系统通知</span>
+              <button class="btn blu" id="start-research">开始研究 →</button>
+            </div>
+          </div>
+          <input type="file" id="research-file" multiple accept=".pdf,.docx,.pptx,.md,.txt,.markdown" style="display:none">
+        </div>
+      </section>
+
+      <div class="res-grid">
+        <div class="task-list" id="task-list"></div>
+        <div class="card" id="detail-card">
+          <div class="empty"><span class="big">🔬</span>发起一项研究，或从左侧选择任务查看实时进展</div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script src="/vendor/marked.min.js"></script>
+<script src="/vendor/purify.min.js"></script>
+<script src="/app.js"></script>
+<script>
+// 标识符（$ / api / toast / esc 等）由 app.js 全局提供
+let tasks = [], selectedId = null, ws = null, logs = [];
+const state = {web: true, thinking: 'standard', workspace: 'shelf_rag', noteIds: [], docIds: [],
+               paradigm: 'plan_execute', skillIds: [], mcpInfo: null};
+
+const WS_DESC = () => ({
+  web: `🌐 已选「<b>全网</b>」：检索公开网络与页面正文，需要联网。`,
+  notes: `📝 已选「<b>指定笔记</b>」：${state.noteIds.length || 0} 篇笔记<b>以完整原文</b>纳入研究 · 点击 chips 可重新选择。`,
+  docs: `📄 已选「<b>书架文件</b>」：${state.docIds.length || 0} 份文档<b>以完整原文</b>纳入研究（不走向量索引）· 点击 chips 可重新选择。`,
+  shelf_rag: `🧬 已选「<b>整个书架</b>」：基于本地向量索引检索全部文档，<b>可离线运行</b>。要求书架已完成向量化，否则任务会提示中断；可在书架页重建索引。`
+})[state.workspace];
+
+function refreshWSUI() {
+  $('#wsDesc').innerHTML = WS_DESC();
+  const nn = $('#ws-notes-n'), dn = $('#ws-docs-n');
+  nn.style.display = state.noteIds.length ? '' : 'none'; nn.textContent = state.noteIds.length;
+  dn.style.display = state.docIds.length ? '' : 'none'; dn.textContent = state.docIds.length;
+  // 已选材料：chip 绿底高亮，让人一眼看出选了东西
+  document.querySelector('.ws[data-ws="notes"]').classList.toggle('has-sel', state.noteIds.length > 0);
+  document.querySelector('.ws[data-ws="docs"]').classList.toggle('has-sel', state.docIds.length > 0);
+}
+
+$('#paradigm-seg').onclick = e => {
+  const b = e.target.closest('button'); if (!b) return;
+  $$('#paradigm-seg button').forEach(x => x.classList.toggle('on', x === b));
+  state.paradigm = b.dataset.p;
+};
+$('#skills-chip').onclick = async function () {
+  const skills = await api('/research/skills').catch(() => []);
+  if (!skills.length) {
+    if (await confirmDialog('还没有技能', '技能是可以复用的研究要求（如「学术严谨模式」）。现在去设置页创建？'))
+      location.href = '/settings';
+    return;
+  }
+  const picked = await pickDialog('选择研究技能（可多选）', skills.map(k => ({id: k.id, title: k.name, icon: '🧩'})),
+                                  {multi: true, preselected: state.skillIds});
+  if (picked) {
+    state.skillIds = picked.map(p => p.id);
+    const em = $('#skills-n');
+    em.style.display = state.skillIds.length ? '' : 'none';
+    em.textContent = state.skillIds.length;
+    this.classList.toggle('has-sel', state.skillIds.length > 0);
+  }
+};
+(async () => {
+  // MCP 状态指示
+  const servers = await api('/settings/mcp').then(r => r.filter(s => s.enabled)).catch(() => []);
+  const chip = $('#mcp-chip');
+  if (servers.length) {
+    chip.textContent = `🔌 MCP · ${servers.length}`;
+    chip.classList.add('has-sel');
+    chip.onclick = () => location.href = '/settings';
+  } else {
+    chip.onclick = () => location.href = '/settings';
+  }
+})();
+
+$('#netChip').onclick = function () {
+  state.web = this.classList.toggle('grn-on');
+  this.textContent = state.web ? '🌐 联网检索 · 开' : '🌐 联网检索 · 关';
+};
+$('#thinkSeg').onclick = e => {
+  const b = e.target.closest('button'); if (!b) return;
+  $$('#thinkSeg button').forEach(x => x.classList.toggle('on', x === b));
+  state.thinking = b.dataset.lv;
+};
+$$('.ws').forEach(ch => ch.onclick = async () => {
+  const ws = ch.dataset.ws;
+  if (ws === 'notes') {
+    const notes = await api('/notes');
+    const picked = await pickDialog('选择参与研究的笔记（可多选）', notes.map(n => ({id: n.id, title: n.title, sub: n.folder, icon: '📝'})), {multi: true, preselected: state.noteIds});
+    if (picked) state.noteIds = picked.map(p => p.id);
+  } else if (ws === 'docs') {
+    const docs = (await api('/shelf')).documents;
+    const picked = await pickDialog('选择参与研究的文档（可多选）', docs.map(d => ({id: d.id, title: d.title, sub: d.size_human, icon: d.icon})), {multi: true, preselected: state.docIds});
+    if (picked) state.docIds = picked.map(p => +p.id);
+  }
+  state.workspace = ws;
+  $$('.ws').forEach(c => c.classList.toggle('on', c === ch));
+  refreshWSUI();
+});
+refreshWSUI();
+
+$('#uploadChip').onclick = () => $('#research-file').click();
+$('#research-file').onchange = async ev => {
+  const files = [...ev.target.files]; if (!files.length) return;
+  toast('上传中…', files.map(f => f.name).join('、'), '', null, 0);
+  const fd = new FormData();
+  files.forEach(f => fd.append('files', f));
+  try {
+    const res = await fetch('/api/shelf/upload', {method: 'POST', body: fd});
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || '上传失败');
+    state.docIds.push(...data.documents.map(d => d.id));
+    state.workspace = 'docs';
+    $$('.ws').forEach(c => c.classList.toggle('on', c.dataset.ws === 'docs'));
+    refreshWSUI();
+    toast(`已加入 ${data.documents.length} 份研究材料 📎`, '可在「书架文件」工作区中被引用', 'ok');
+  } catch (e) { showError(e); }
+  ev.target.value = '';
+};
+
+$('#start-research').onclick = async () => {
+  const q = $('#research-input').value.trim();
+  if (!q) return toast('先写下研究问题', '范围越具体，报告质量越高', 'err');
+  try {
+    const t = await api('/research', {method: 'POST', body: {
+      query: q,
+      workspace: {type: state.workspace, note_ids: state.noteIds, doc_ids: state.docIds},
+      thinking_level: state.thinking,
+      web_enabled: state.web,
+      paradigm: state.paradigm,
+      skill_ids: state.skillIds,
+    }});
+    $('#research-input').value = '';
+    toast('研究已提交 🚀', '后台运行中，可以关掉窗口去做别的', 'ok', () => selectTask(t.id));
+    await loadTasks(); selectTask(t.id);
+  } catch (e) { showError(e); }
+};
+
+/* ---------- 任务列表 + 详情 ---------- */
+async function loadTasks() {
+  tasks = await api('/research');
+  const running = tasks.filter(t => t.status === 'running' || t.status === 'queued' || t.status === 'paused');
+  const done = tasks.filter(t => t.status === 'completed');
+  const other = tasks.filter(t => ['failed', 'cancelled'].includes(t.status));
+  $('#task-list').innerHTML =
+    (running.length ? `<span class="tape t-org">⏳ 进行中</span>` : '') +
+    running.map(t => rtCard(t)).join('') +
+    (done.length ? `<span class="tape t-grn tape-gap">✅ 已完成</span>` : '') +
+    done.map(t => rtCard(t)).join('') +
+    (other.length ? `<span class="tape tape-gap">🗂 其他</span>` : '') +
+    other.map(t => rtCard(t)).join('');
+  $$('#task-list .rt-card').forEach(el => el.onclick = e => {
+    if (e.target.closest('.rt-del')) return;
+    selectTask(el.dataset.id);
+  });
+  $$('#task-list [data-del]').forEach(el => el.onclick = async e => {
+    e.stopPropagation();
+    if (!(await confirmDialog('删除研究任务', '任务及其报告将一并删除，确定？'))) return;
+    try { await api('/research/' + el.dataset.del, {method: 'DELETE'}); toast('已删除', '', 'ok'); loadTasks(); }
+    catch (err) { showError(err); }
+  });
+}
+
+function rtCard(t) {
+  const label = {running: '进行中', queued: '排队中', paused: '已暂停', completed: '已完成', failed: '失败', cancelled: '已取消'}[t.status];
+  const deletable = ['completed', 'failed', 'cancelled'].includes(t.status);
+  return `<div class="rt-card ${t.id === selectedId ? 'on' : ''}" data-id="${t.id}">
+    <b>${t.status === 'running' ? '<span class="live"></span>' : ''}${esc(t.report_title || t.query.slice(0, 26))}
+      ${deletable ? `<span class="rt-del" data-del="${t.id}" title="删除任务与报告" style="float:right;cursor:pointer;opacity:.5">🗑</span>` : ''}</b>
+    <span>${ago(t.created_at)} · 工作区 ${esc(wsLabel(t))} · ${t.thinking_level === 'quick' ? '快速' : t.thinking_level === 'deep' ? '深入' : '标准'}${t.paradigm && t.paradigm !== 'plan_execute' ? ' · ' + ({react: 'ReAct', multi_agent: '多智能体'})[t.paradigm] : ''}</span>
+    <div class="st">${t.status === 'completed'
+      ? `<span class="dtag g">已完成</span><span class="dtag b">${t.sources_visited} 信源</span>`
+      : t.status === 'failed' ? `<span class="dtag" style="background:#ffe1e1">失败</span>`
+      : t.status === 'cancelled' ? `<span class="dtag">已取消</span>`
+      : `<div class="pbar" style="flex:1"><i style="width:${Math.round(t.progress * 100)}%"></i></div><span style="font-size:10.5px;font-weight:800">${Math.round(t.progress * 100)}%</span>`}</div></div>`;
+}
+const wsLabel = t => ({web: '全网', notes: '笔记', docs: '书架文件', shelf_rag: '书架RAG'}[t.workspace?.type] || t.workspace?.type);
+
+async function selectTask(id) {
+  selectedId = id;
+  $$('#task-list .rt-card').forEach(el => el.classList.toggle('on', el.dataset.id === id));
+  const t = tasks.find(x => x.id === id) || await api('/research/' + id);
+  if (['completed'].includes(t.status)) return location.href = '/report?id=' + id;
+  if (['failed', 'cancelled'].includes(t.status)) {
+    $('#detail-card').innerHTML = `<div class="empty"><span class="big">${t.status === 'failed' ? '😵' : '🚪'}</span>该任务已${t.status === 'failed' ? '失败' : '取消'}
+      ${t.error ? `<div style="margin-top:8px;font-weight:600;color:var(--org)">${esc(t.error)}</div>` : ''}
+      <div style="margin-top:14px"><a class="btn sm ghost" href="/settings">🔑 去配置模型</a></div></div>`;
+    return;
+  }
+  $('#detail-card').innerHTML = `
+    <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:4px">
+      <b style="font-size:15.5px"><span class="live"></span>${esc(t.query.slice(0, 30))}</b>
+      <span style="font-size:11.5px;color:var(--dim);font-weight:700">${esc(t.current_step || '进行中')} · 已访问 ${t.sources_visited} 个信源${t.conflicts_found ? ' · 发现 ' + t.conflicts_found + ' 处冲突' : ''}</span>
+    </div>
+    <div class="pbar" style="margin:10px 0 4px"><i id="detail-bar" style="width:${Math.round(t.progress * 100)}%"></i></div>
+    <div style="font-size:11.5px;color:var(--dim);margin-bottom:13px">后台运行中，完成后会通知你 🔔</div>
+    <b style="font-size:13px">📋 活动日志</b>
+    <div class="log" id="detail-log"></div>
+    <div style="display:flex;gap:10px;margin-top:15px;flex-wrap:wrap">
+      <button class="btn sm ghost" id="btn-pause">⏸ 暂停</button>
+      <button class="btn sm ghost" id="btn-resume" style="display:none">▶ 继续</button>
+      <button class="btn sm ghost" id="btn-cancel">🗑 取消研究</button>
+    </div>`;
+  $('#btn-pause').onclick = async () => { try { await api(`/research/${id}/pause`, {method: 'POST', body: {}}); } catch (e) { showError(e); } };
+  $('#btn-resume').onclick = async () => { try { await api(`/research/${id}/resume`, {method: 'POST', body: {}}); } catch (e) { showError(e); } };
+  $('#btn-cancel').onclick = async () => {
+    if (!(await confirmDialog('取消研究', '确定取消当前研究任务？已收集的信源将丢弃。'))) return;
+    try { await api(`/research/${id}/cancel`, {method: 'POST', body: {}}); } catch (e) { showError(e); }
+  };
+  // 已有日志补发
+  try {
+    const txt = await api(`/research/${id}/logs`);
+    logs = txt.split('\n').filter(Boolean);
+    renderLogs();
+  } catch {}
+  connectWS(id);
+  setPausedUI(t.status === 'paused');
+}
+
+function setPausedUI(paused) {
+  const p = $('#btn-pause'), r = $('#btn-resume');
+  if (p) p.style.display = paused ? 'none' : '';
+  if (r) r.style.display = paused ? '' : 'none';
+}
+
+function renderLogs() {
+  const el = $('#detail-log'); if (!el) return;
+  el.innerHTML = logs.map(line => {
+    const m = line.match(/^\[(\d{2}:\d{2}:\d{2})\]\s?(.*)$/);
+    const time = m ? m[1] : '', msg = m ? m[2] : line;
+    const kind = msg.includes('⚠️') || msg.includes('失败') ? 'warn' : msg.includes('🎉') ? 'ok' : /正在|检索|读取/.test(msg) ? 'now' : 'ok';
+    return `<div class="log-it ${kind}">${time ? `<span class="t">${time}</span>` : ''}${esc(msg)}</div>`;
+  }).join('') || '<div class="log-it now">等待 Agent 开始工作…</div>';
+  el.scrollTop = el.scrollHeight;
+}
+
+function connectWS(id) {
+  if (ws) ws.close();
+  ws = new WebSocket(`ws://${location.host}/ws/research/${id}`);
+  ws.onmessage = ev => {
+    const m = JSON.parse(ev.data);
+    if (m.type === 'log') { logs.push(`[${m.time}] ${m.message}`); renderLogs(); }
+    else if (m.type === 'progress') {
+      $('#detail-bar')?.style.setProperty('width', Math.round(m.progress * 100) + '%');
+      loadTasks();
+    } else if (m.type === 'status') {
+      if (m.status === 'completed') { toast('研究完成 🎉', m.report_title || '', 'ok', () => location.href = '/report?id=' + id); location.href = '/report?id=' + id; }
+      if (m.status === 'failed') { toast('研究失败', m.error || '', 'err'); loadTasks(); selectTask(id); }
+      if (m.status === 'paused') { setPausedUI(true); loadTasks(); }
+      if (m.status === 'running') { setPausedUI(false); loadTasks(); }
+    } else if (m.type === 'sources' || m.type === 'conflicts') { loadTasks(); }
+  };
+  ws.onclose = () => {};
+}
+
+/* 轮询兜底：列表状态刷新 */
+setInterval(() => { if (selectedId) loadTasks(); }, 8000);
+loadTasks().catch(showError);
+</script>
+</body>
+</html>

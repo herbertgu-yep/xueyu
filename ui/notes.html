@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>学屿 · 笔记</title>
+<link rel="stylesheet" href="/mac.css">
+<link rel="stylesheet" href="/app.css">
+<link rel="stylesheet" href="/vendor/katex/katex.min.css">
+<style>
+  .note-list{width:240px;flex-shrink:0;border-right:2px solid var(--ink);display:flex;flex-direction:column;background:rgba(255,253,246,.6);min-height:0}
+  .nl-head{padding:12px 14px;border-bottom:2px dashed #e0d6bd;display:flex;align-items:center;gap:8px}
+  .nl-head b{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .nl-head .cnt{font-size:11px;color:var(--dim);font-weight:800;flex-shrink:0}
+  .nl-head button{margin-left:auto}
+  .nl-items{flex:1;overflow-y:auto;padding:8px}
+  .nl-it{padding:10px 12px;border-radius:10px 4px 11px 5px;border:2px solid transparent;cursor:pointer;margin-bottom:4px}
+  .nl-it:hover{border-color:var(--ink)}
+  .nl-it.on{background:#fff;border:2px solid var(--ink);box-shadow:2px 2px 0 rgba(61,55,44,.25)}
+  .nl-it b{font-size:12.5px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .nl-it p{font-size:11px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+  .nl-it .m{display:flex;gap:6px;margin-top:5px;align-items:center}
+  .nl-it .m span{font-size:10px;color:var(--dim);font-weight:700}
+
+  .editor{flex:1;display:flex;flex-direction:column;min-width:0;min-height:0}
+  .ed-title{padding:16px 24px 0;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .ed-title input{flex:1;min-width:140px;border:none;outline:none;background:transparent;font-size:20px;font-weight:850;color:var(--ink)}
+  .ed-meta{padding:6px 24px 10px;font-size:11.5px;color:var(--dim);display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .ed-meta .save{margin-left:auto;color:var(--grn);font-weight:800}
+  .ed-toolbar{display:flex;gap:4px;align-items:center;padding:8px 16px;border-top:2px dashed #e0d6bd;border-bottom:2px dashed #e0d6bd;background:rgba(255,253,246,.7);flex-wrap:wrap}
+  .tb{width:28px;height:28px;border:1.5px solid transparent;border-radius:7px;background:transparent;font-size:12.5px;font-weight:800;display:flex;align-items:center;justify-content:center}
+  .tb:hover{border-color:var(--ink);background:#fff}
+  .tb:active{background:var(--ylw)}
+  .tb-sep{width:1px;height:16px;background:#ddd2b8;margin:0 4px}
+
+  /* 编辑区：源码 / 分屏 / 预览 三态，默认分屏（边写边渲染） */
+  .ed-body{flex:1;display:flex;min-height:0}
+  #editor-area{flex:1;border:none;outline:none;resize:none;padding:18px 22px;font-size:13.5px;line-height:1.9;background:transparent;font-family:ui-monospace,Menlo,monospace;color:var(--ink)}
+  #preview-area{flex:1;overflow-y:auto;padding:18px 22px;display:none;border-left:2px dashed #e0d6bd}
+  body.split #preview-area{display:block}
+  body.preview #editor-area{display:none}
+  body.preview #preview-area{display:block;border-left:none}
+  body.edit #preview-area{display:none}
+
+  .ai-side{width:300px;flex-shrink:0;border-left:2px solid var(--ink);background:rgba(255,253,246,.85);display:flex;flex-direction:column;min-height:0;position:relative}
+  .ai-resize{position:absolute;left:-4px;top:0;bottom:0;width:8px;cursor:col-resize;z-index:5}
+  .ai-resize:hover{background:rgba(240,180,41,.25)}
+  .ai-head{padding:10px 14px;border-bottom:2px dashed #e0d6bd;display:flex;align-items:center;gap:6px}
+  .ai-head b{font-size:13.5px}
+  .ai-head button{margin-left:auto}
+  .ai-status{font-size:10.5px;font-weight:800;padding:1px 8px;border-radius:8px;background:#eef3fb;border:1.5px solid var(--ink)}
+  .ai-status.busy{background:var(--ylw);animation:pulse 1.2s infinite}
+  @keyframes pulse{50%{opacity:.55}}
+  .ai-sessions{padding:8px 10px;border-bottom:2px dashed #e0d6bd;display:flex;gap:6px;align-items:center;background:#fffdf6}
+  .ai-sessions select{flex:1;border:2px solid var(--ink);border-radius:9px 4px 10px 5px;padding:4px 8px;font-size:12px;background:#fff;outline:none}
+  .ai-sessions .tb-btn{width:26px;height:26px;min-width:26px}
+  .ai-chat{flex:1;overflow-y:auto;padding:10px 14px;display:flex;flex-direction:column;gap:10px}
+  .msg{max-width:94%;padding:9px 12px;font-size:12px;border:2px solid var(--ink);line-height:1.65}
+  .msg.user{align-self:flex-end;background:#e3edfd;border-radius:13px 4px 13px 4px}
+  .msg.bot{align-self:flex-start;background:#fff;border-radius:4px 13px 4px 13px}
+  .msg.bot .who{font-size:10px;font-weight:800;color:var(--pnk);margin-bottom:3px;display:flex;gap:6px;align-items:center}
+  .msg .ins{display:inline-block;margin-top:6px;font-size:10.5px;font-weight:800;color:var(--pnk);border-bottom:1.5px solid var(--pnk);cursor:pointer;margin-right:10px}
+  .msg .src{margin-top:6px;font-size:10px;color:var(--dim)}
+  .msg .src a{color:var(--blu)}
+  .msg .cursor{display:inline-block;width:7px;height:13px;background:var(--pnk);vertical-align:-2px;animation:pulse .8s infinite}
+  .ai-dock{border-top:2px solid var(--ink);background:#fffdf6}
+  .ai-quick{display:flex;flex-wrap:wrap;gap:6px;padding:10px 12px 6px}
+  .ai-quick .chip{font-size:11px;padding:3px 9px;transition:transform .1s,opacity .2s}
+  .ai-quick .chip.sel{background:var(--pnk);color:#fff}
+  .ai-quick .chip.busy{opacity:.55;pointer-events:none;border-style:dashed}
+  .ai-quick .chip.active{background:var(--blu);color:#fff}
+  .ai-modes{display:flex;gap:6px;align-items:center;padding:2px 12px 8px}
+  .ai-modes .lab{font-size:10.5px;font-weight:800;color:var(--dim)}
+  .ai-modes .seg button{padding:3px 10px;font-size:11px}
+  .ai-modes .chip{font-size:11px;padding:3px 9px}
+  .ai-modes .spacer{flex:1}
+  .ai-input{padding:0 12px 12px;display:flex;gap:8px}
+  .ai-input input{flex:1;border:2px solid var(--ink);border-radius:11px 5px 12px 6px;padding:8px 12px;font-size:12.5px;outline:none;background:#fff}
+  .ai-input button{border:2px solid var(--ink);background:var(--pnk);color:#fff;border-radius:11px 5px 12px 6px;width:38px;font-size:15px;font-weight:800}
+  .ai-input button:hover{filter:brightness(1.08)}
+  .ai-input button:disabled{opacity:.5}
+  .nl-folders{padding:8px;border-bottom:2px dashed #e0d6bd;display:flex;flex-wrap:wrap;gap:4px}
+  .folder-chip{font-size:10.5px;font-weight:800;border:1.5px solid var(--ink);border-radius:8px 3px 9px 4px;padding:1px 8px;background:#fff;cursor:pointer}
+  .folder-chip.on{background:var(--ylw)}
+  /* 润色方案弹窗 */
+  .variant{border:2px solid var(--ink);border-radius:12px 5px 13px 6px;padding:12px 14px;margin-bottom:10px;background:#fff}
+  .variant h4{font-size:13px;margin-bottom:6px;display:flex;align-items:center;gap:8px}
+  .variant .vbody{max-height:180px;overflow-y:auto;font-size:12px;border-top:2px dashed #e0d6bd;padding-top:8px}
+</style>
+</head>
+<body data-page="notes" class="split">
+<div class="app-shell">
+  <header class="app-header" id="app-header" data-title="📝 笔记">
+      <span class="app-title"><span class="ico">🏝️</span> 学屿</span>
+      <span class="sep-v"></span>
+      <span class="page-title">📝 笔记</span>
+      <div class="tb-tools">
+        <button class="tb-btn" id="global-search" title="全局搜索 ⌘K">🔍</button>
+      <div id="page-tools"><button class="tb-btn" title="版本历史" id="ver-btn">↩</button></div>
+      </div>
+    </header>
+  <div class="app">
+    <aside class="sidebar" id="app-sidebar">
+        <div class="side-head" style="display:flex;align-items:center;padding:2px 6px 8px;border-bottom:2px dashed #e0d6bd;margin-bottom:6px">
+          <b style="font-size:12px;color:var(--dim);letter-spacing:1px">学屿</b>
+          <button class="tb-btn" id="side-collapse" title="收起侧边栏" style="margin-left:auto;width:26px;height:26px;min-width:26px">◧</button>
+        </div>
+        <div class="side-label">今天</div>
+        <a class="side-it" href="/" data-nav="index" title="今日清单"><span class="ico2">☀️</span><span class="txt">今日清单</span><span class="cnt" id="cnt-today"></span></a>
+        <a class="side-it" href="/plan" data-nav="plan" title="学习计划"><span class="ico2">📅</span><span class="txt">学习计划</span><span class="cnt" id="cnt-plans"></span></a>
+        <div class="side-label">学习资产</div>
+        <a class="side-it" href="/notes" data-nav="notes" title="笔记"><span class="ico2">📝</span><span class="txt">笔记</span><span class="cnt" id="cnt-notes"></span></a>
+        <a class="side-it" href="/shelf" data-nav="shelf" title="书架"><span class="ico2">📚</span><span class="txt">书架</span><span class="cnt" id="cnt-shelf"></span></a>
+        <a class="side-it" href="/research" data-nav="research" title="深度研究"><span class="ico2">🔬</span><span class="txt">深度研究</span><span class="cnt" id="cnt-research"></span></a>
+        <a class="side-it" href="/settings" data-nav="settings" style="margin-top:auto">⚙️ 设置</a>
+      </aside>
+
+    <div class="note-list">
+      <div class="nl-head"><b id="nl-title">全部笔记</b><span class="cnt" id="nl-count"></span>
+        <button class="tb-btn" title="管理笔记本" id="folder-mgr-btn">🗂</button>
+        <button class="tb-btn" title="新建笔记 ⌘N" id="new-note-btn">✏️</button></div>
+      <div class="nl-folders" id="nl-folders"></div>
+      <div class="nl-items" id="nl-items"></div>
+    </div>
+
+    <div class="editor">
+      <div class="ed-title"><input id="note-title" placeholder="无标题笔记">
+        <span class="dtag" id="note-folder-tag" style="cursor:pointer">未分类</span>
+        <button class="tb-btn" id="del-btn" title="删除笔记">🗑</button>
+        <button class="tb-btn" id="to-plan-btn" title="加入复习计划">📅 加入复习</button>
+      </div>
+      <div class="ed-meta">
+        <div class="seg" id="mode-seg" title="编辑 / 分屏实时渲染 / 纯预览">
+          <button data-m="edit">✏️ 编辑</button><button data-m="split" class="on">≑ 分屏</button><button data-m="preview">👁 预览</button>
+        </div>
+        <span id="note-tags">🏷 —</span><span id="note-updated"></span>
+        <span class="save" id="save-state"></span>
+      </div>
+      <div class="ed-toolbar">
+        <button class="tb" data-md="bold" title="加粗 ⌘B">B</button><button class="tb" style="font-style:italic" data-md="italic" title="斜体 ⌘I">I</button><button class="tb" style="text-decoration:line-through" data-md="strike" title="删除线">S</button><button class="tb" data-md="mark" title="高亮">🖍</button><button class="tb" data-md="underline" title="下划线" style="text-decoration:underline">U</button>
+        <span class="tb-sep"></span><button class="tb" data-md="h1" title="一级标题">H1</button><button class="tb" data-md="h2" title="二级标题">H2</button><button class="tb" data-md="h3" title="三级标题">H3</button>
+        <span class="tb-sep"></span><button class="tb" data-md="ul" title="无序列表">•</button><button class="tb" data-md="ol" title="有序列表">1.</button><button class="tb" data-md="task" title="任务列表">☑</button><button class="tb" data-md="quote" title="引用">❝</button>
+        <span class="tb-sep"></span><button class="tb" data-md="codeblock" title="代码块">{ }</button><button class="tb" data-md="code" title="行内代码">&lt;/&gt;</button><button class="tb" data-md="formula" title="行内公式 $…$">∑</button><button class="tb" data-md="blockformula" title="公式块 $$…$$">∑∑</button>
+        <span class="tb-sep"></span><button class="tb" data-md="link" title="链接">🔗</button><button class="tb" data-md="image" title="图片">🖼</button><button class="tb" data-md="table" title="表格">⊞</button><button class="tb" data-md="hr" title="分隔线">—</button>
+      </div>
+      <div class="ed-body" id="ed-body">
+        <textarea id="editor-area" placeholder="用 Markdown 记点什么……（右侧实时渲染 · 自动保存）"></textarea>
+        <div id="preview-area" class="md"></div>
+      </div>
+    </div>
+
+    <aside class="ai-side" id="ai-side">
+      <div class="ai-resize" id="ai-resize" title="拖动调整宽度"></div>
+      <div class="ai-head"><b>✨ AI 助手</b>
+        <span class="ai-status" id="ai-status">就绪</span>
+        <button class="tb-btn" id="chat-new" title="发起新对话" style="width:26px;height:26px;min-width:26px">＋</button>
+        <button class="tb-btn" id="assets-btn" title="本笔记的附件（自测题等）" style="width:26px;height:26px;min-width:26px">📎</button>
+        <button class="tb-btn" id="chat-del" title="删除当前对话" style="width:26px;height:26px;min-width:26px">🗑</button>
+        <button class="tb-btn" id="ai-collapse" title="收起 AI 面板" style="width:26px;height:26px;min-width:26px">✕</button>
+      </div>
+      <div class="ai-sessions">
+        <select id="chat-select" title="对话历史"><option value="">— 选择历史对话 —</option></select>
+      </div>
+      <div class="ai-chat" id="ai-chat"></div>
+      <div class="ai-dock">
+        <div class="ai-quick">
+          <span class="chip" data-act="summarize">🧾 总结全文</span>
+          <span class="chip" data-act="continue" id="continue-chip">✍️ 续写</span>
+          <span class="chip" data-act="polish">🪄 润色（三方案）</span>
+          <span class="chip" data-act="quiz">❓ 出自测题</span>
+        </div>
+        <div class="ai-modes">
+          <span class="lab">思考</span>
+          <div class="seg" id="think-seg">
+            <button data-t="quick">快速</button><button data-t="standard" class="on">标准</button><button data-t="deep">深入</button>
+          </div>
+          <span class="spacer"></span>
+          <span class="chip" id="web-chip" title="回答前先联网检索并附引用">🌐 联网</span>
+        </div>
+        <div class="ai-input">
+          <input placeholder="问点什么…" id="ai-input">
+          <button title="发送" id="ai-send">↑</button>
+        </div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<script src="/vendor/marked.min.js"></script>
+<script src="/vendor/purify.min.js"></script>
+<script src="/vendor/katex/katex.min.js"></script>
+<script src="/vendor/katex/auto-render.min.js"></script>
+<script src="/app.js"></script>
+<script>
+// 标识符（$ / api / toast / esc / md 等）由 app.js 全局提供
+let notes = [], folders = [], curId = null, curNote = null, dirty = false;
+let curFolder = null, filter = '';
+let pendingContinue = false, webOn = false, thinking = 'standard';
+/* AI 会话与互斥状态 */
+let aiBusy = null;            // null | {label, chip, abort}
+let aiChatId = null;          // 当前会话 id
+let aiMessages = [];          // [{role, content, sources?}]
+
+/* ---------- 编辑器：源码 / 分屏 / 预览（默认分屏，实时渲染） ---------- */
+const MODE_KEY = 'xueyu-note-mode';
+function setMode(mode) {
+  document.body.classList.remove('edit', 'split', 'preview');
+  if (mode !== 'edit') document.body.classList.add(mode);
+  localStorage.setItem(MODE_KEY, mode);
+  $$('#mode-seg button').forEach(b => b.classList.toggle('on', b.dataset.m === mode));
+  const pv = $('#preview-area');
+  if (pv) pv.dataset.src = '';   // 强制下次全量渲染，避免残留旧内容
+  renderLive();
+}
+$$('#mode-seg button').forEach(b => b.onclick = () => setMode(b.dataset.m));
+const renderLive = debounce(() => {
+  const ta = $('#editor-area'), pv = $('#preview-area');
+  if (!document.body.classList.contains('split') && !document.body.classList.contains('preview')) return;
+  if (ta.value === pv.dataset.src) return;
+  pv.dataset.src = ta.value;
+  mdRender(pv, ta.value);
+}, 140);
+$('#editor-area').addEventListener('scroll', () => {
+  if (!document.body.classList.contains('split')) return;
+  const ta = $('#editor-area'), pv = $('#preview-area');
+  const ratio = ta.scrollTop / Math.max(1, ta.scrollHeight - ta.clientHeight);
+  pv.scrollTop = ratio * (pv.scrollHeight - pv.clientHeight);
+});
+function toggleMode() {
+  const b = document.body;
+  setMode(b.classList.contains('split') ? 'preview' : b.classList.contains('preview') ? 'edit' : 'split');
+}
+
+$('#editor-area').addEventListener('input', () => { dirty = true; renderLive(); saveNote(); });
+
+/* 工具栏：源码光标处插 Markdown */
+$$('.ed-toolbar .tb').forEach(btn => btn.addEventListener('click', () => {
+  const ta = $('#editor-area');
+  ta.focus();
+  const s = ta.selectionStart, e = ta.selectionEnd, sel = ta.value.slice(s, e);
+  const kind = btn.dataset.md;
+  const wrap = (b, a, ph) => { ta.setRangeText(b + (sel || ph) + a, s, e, 'end'); };
+  const line = pfx => {
+    const ls = ta.value.lastIndexOf('\n', s - 1) + 1;
+    ta.setRangeText(pfx, ls, ls, 'end');
+  };
+  const acts = {
+    bold: () => wrap('**', '**', '加粗文字'), italic: () => wrap('*', '*', '斜体'),
+    strike: () => wrap('~~', '~~', '删除线'), mark: () => wrap('==', '==', '高亮'),
+    underline: () => wrap('<u>', '</u>', '下划线'),
+    h1: () => line('# '), h2: () => line('## '), h3: () => line('### '),
+    ul: () => line('- '), ol: () => line('1. '), task: () => line('- [ ] '), quote: () => line('> '),
+    code: () => wrap('`', '`', 'code'),
+    formula: () => wrap('$', '$', 'E=mc^2'),
+    blockformula: () => wrap('\n$$\n', '\n$$\n', 'E=mc^2'),
+    codeblock: () => wrap('\n```\n', '\n```\n', 'code'),
+    table: () => wrap('', '', '| 列1 | 列2 | 列3 |\n| --- | --- | --- |\n| 内容 | 内容 | 内容 |\n'),
+    link: () => wrap('[', '](https://)', '链接文字'),
+    image: () => wrap('![', '](https://)', '图片'),
+    hr: () => wrap('\n---\n', '', ''),
+  };
+  acts[kind] && acts[kind]();
+  dirty = true; renderLive(); saveNote();
+}));
+document.addEventListener('keydown', e => {
+  if (!(e.metaKey || e.ctrlKey)) return;
+  const k = e.key.toLowerCase();
+  if (k === 'b') { e.preventDefault(); $('[data-md="bold"]').click(); }
+  if (k === 'i') { e.preventDefault(); $('[data-md="italic"]').click(); }
+});
+
+/* ---------- 列表 ---------- */
+async function loadFolders() {
+  folders = await api('/notes/folders');
+  const params = new URLSearchParams(location.search);
+  if (params.get('folder')) curFolder = params.get('folder');
+  $('#nl-folders').innerHTML = `<span class="folder-chip ${curFolder == null ? 'on' : ''}" data-f="">全部</span>` +
+    folders.map(f => `<span class="folder-chip ${curFolder === f.folder ? 'on' : ''}" data-f="${esc(f.folder)}">${esc(f.folder)} ${f.count}</span>`).join('') +
+    `<span class="folder-chip" data-f="+">＋</span>`;
+  $$('#nl-folders .folder-chip').forEach(ch => ch.onclick = async () => {
+    if (ch.dataset.f === '+') {
+      const name = await XueYu.promptDialog('新建笔记本', {label: '名称'}); if (!name) return;
+      const n = await api('/notes', {method: 'POST', body: {title: '未命名笔记', folder: name, content: ''}});
+      curFolder = name; await loadFolders(); openNote(n.id); return;
+    }
+    curFolder = ch.dataset.f || null; loadFolders(); loadList();
+  });
+}
+
+async function loadList() {
+  notes = await api('/notes' + (curFolder ? '?folder=' + encodeURIComponent(curFolder) : ''));
+  $('#nl-title').textContent = curFolder || '全部笔记';
+  $('#nl-count').textContent = notes.length + ' 篇';
+  const list = filter ? notes.filter(n => (n.title + n.excerpt).toLowerCase().includes(filter)) : notes;
+  $('#nl-items').innerHTML = list.length ? list.map(n => `
+    <div class="nl-it ${n.id === curId ? 'on' : ''}" data-id="${n.id}">
+      <b>${esc(n.title)}</b><p>${esc(n.excerpt || '…')}</p>
+      <div class="m"><span>${ago(n.updated)}</span>${n.ai_assisted ? '<span class="ai-mini" style="background:var(--ink);color:#fff;font-size:9.5px;font-weight:800;border-radius:6px;padding:1px 6px">✨ AI</span>' : ''}
+        ${(n.tags || []).slice(0, 2).map(t => `<span>#${esc(t)}</span>`).join('')}</div>
+    </div>`).join('') : `<div class="empty"><span class="big">🍃</span>${filter ? '没有匹配的笔记' : '还没有笔记'}</div>`;
+  $$('#nl-items .nl-it').forEach(el => el.onclick = () => openNote(el.dataset.id));
+}
+
+/* ---------- 打开 / 保存 ---------- */
+async function openNote(id) {
+  if (!id) return;
+  if (dirty && curId) {
+    if (!(await XueYu.confirmDialog('未保存', '有未保存的修改，仍要切换吗？'))) return;
+  }
+  try { curNote = await api('/notes/' + id); } catch (e) { showError(e); return; }
+  curId = id; dirty = false;
+  aiChatId = null; aiMessages = [];
+  $('#note-title').value = curNote.title;
+  $('#editor-area').value = curNote.content;
+  $('#preview-area').dataset.src = '';
+  setMode(localStorage.getItem(MODE_KEY) || 'split');
+  $('#note-folder-tag').textContent = curNote.folder || '未分类';
+  $('#note-tags').textContent = '🏷 ' + ((curNote.tags || []).join(' / ') || '—');
+  $('#note-updated').textContent = '更新于 ' + ago(curNote.updated);
+  $('#save-state').textContent = '';
+  renderChatEmpty();
+  loadChats();
+  history.replaceState(null, '', '/notes?id=' + id);
+  loadList();
+}
+
+const saveNote = debounce(async () => {
+  if (!curId || !dirty) return;
+  try {
+    const updated = await api('/notes/' + curId, {method: 'PUT', body: {
+      title: $('#note-title').value.trim() || '无标题笔记',
+      content: $('#editor-area').value,
+      folder: curNote.folder, tags: curNote.tags,
+      ai_assisted: curNote.ai_assisted,
+    }});
+    curNote = updated; dirty = false;
+    $('#save-state').textContent = '✓ 已自动保存';
+    $('#note-updated').textContent = '更新于 ' + ago(updated.updated);
+    setTimeout(() => { $('#save-state').textContent = ''; }, 2500);
+    loadList();
+  } catch (e) { $('#save-state').textContent = '⚠️ 保存失败'; showError(e); }
+}, 900);
+
+$('#note-title').addEventListener('input', () => { dirty = true; saveNote(); });
+
+async function newNote() {
+  const folder = curFolder || '未分类';
+  const n = await api('/notes', {method: 'POST', body: {title: '未命名笔记', folder, tags: [], content: ''}});
+  dirty = false; openNote(n.id);
+  $('#note-title').focus(); $('#note-title').select();
+}
+window.newNote = newNote;
+$('#new-note-btn').onclick = newNote;
+
+$('#del-btn').onclick = async () => {
+  if (!curId) return;
+  if (!(await XueYu.confirmDialog('删除笔记', `《${curNote.title}》将被删除，此操作不可撤销。`))) return;
+  await api('/notes/' + curId, {method: 'DELETE'});
+  toast('已删除', curNote.title);
+  curId = null; curNote = null;
+  $('#editor-area').value = ''; $('#note-title').value = '';
+  loadList();
+};
+
+$('#note-folder-tag').onclick = async () => {
+  if (!curNote) return;
+  const names = folders.map(f => f.folder).filter(n => n !== (curNote.folder || '未分类'));
+  const picked = await pickDialog('移动到笔记本', [
+    ...names.map(n => ({id: n, title: n, icon: '📄'})),
+    {id: '__new__', title: '＋ 新建笔记本…', icon: '✨'},
+  ]);
+  if (!picked) return;
+  let name = picked.id;
+  if (name === '__new__') name = await XueYu.promptDialog('新建笔记本', {label: '名称'});
+  if (!name) return;
+  curNote = await api('/notes/' + curId, {method: 'PUT', body: {folder: name}});
+  $('#note-folder-tag').textContent = curNote.folder;
+  loadFolders(); loadList();
+};
+
+$('#note-tags').onclick = async () => {
+  if (!curNote) return;
+  const tags = await XueYu.promptDialog('编辑标签', {label: '标签（用逗号分隔）', value: (curNote.tags || []).join(', ')});
+  if (tags == null) return;
+  curNote = await api('/notes/' + curId, {method: 'PUT', body: {tags: tags.split(/[,，]/).map(t => t.trim()).filter(Boolean)}});
+  $('#note-tags').textContent = '🏷 ' + ((curNote.tags || []).join(' / ') || '—');
+};
+
+$('#to-plan-btn').onclick = async () => {
+  if (!curId) return toast('先选中一篇笔记', '', 'err');
+  const withCards = await XueYu.confirmDialog('加入复习计划', '让 AI 依据笔记生成复习卡片？（取消则仅做素材）');
+  try {
+    await api(`/notes/${curId}/plan`, {method: 'POST', body: {daily_minutes: 30, generate_flashcards: withCards}});
+    toast('已加入复习计划 📅', '到「学习计划」查看排期', 'ok');
+  } catch (e) { showError(e); }
+};
+
+async function verHistory() {
+  if (!curId) return;
+  const vers = await api(`/notes/${curId}/versions`);
+  if (!vers.length) return toast('暂无历史版本', 'AI 覆盖等操作前会自动快照');
+  const pick = await pickDialog('恢复到哪个版本？', vers.map(v => ({id: v.file, title: v.file, sub: v.size + ' B'})));
+  if (!pick) return;
+  curNote = await api(`/notes/${curId}/restore`, {method: 'POST', body: {file: pick.id}});
+  $('#editor-area').value = curNote.content;
+  renderLive();
+  toast('已恢复', curNote.title, 'ok');
+}
+
+/* ---------- 文件夹管理 ---------- */
+$('#folder-mgr-btn').onclick = async () => {
+  const fs = await api('/notes/folders');
+  const ov = document.createElement('div');
+  ov.className = 'overlay show';
+  const render = () => {
+    ov.innerHTML = `<div class="modal" style="width:min(440px,92vw)">
+      <div class="modal-head">🗂 管理笔记本<span class="x" data-x>✕</span></div>
+      <div class="modal-body">
+        ${fs.length ? fs.map(f => `
+          <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px">
+            <input class="input" data-name="${esc(f.folder)}" value="${esc(f.folder)}" style="flex:1;padding:6px 10px;font-size:12.5px">
+            <button class="btn sm ghost" data-rename="${esc(f.folder)}">✏️ 改名</button>
+            <button class="btn sm ghost" data-del="${esc(f.folder)}">🗑</button>
+          </div>`).join('') : '<div class="empty">还没有笔记本</div>'}
+        <div style="font-size:11px;color:var(--dim);font-weight:700;margin-top:6px">删除笔记本：里面的笔记会自动归入「未分类」。</div>
+      </div>
+      <div class="modal-foot"><button class="btn sm" data-x>完成</button></div></div>`;
+    $$('[data-x]', ov).forEach(b => b.onclick = () => { ov.remove(); loadFolders(); });
+    $$('[data-rename]', ov).forEach(b => b.onclick = async () => {
+      const oldN = b.dataset.rename;
+      const newN = ov.querySelector(`input[data-name="${CSS.escape(oldN)}"]`).value.trim();
+      if (!newN || newN === oldN) return;
+      try {
+        await api('/notes/folders', {method: 'PUT', body: {old: oldN, new: newN}});
+        toast('已改名', `${oldN} → ${newN}`, 'ok');
+        if (curFolder === oldN) curFolder = newN;
+        if (curNote && curNote.folder === oldN) { curNote.folder = newN; $('#note-folder-tag').textContent = newN; }
+        fs.find(x => x.folder === oldN).folder = newN;
+        render();
+      } catch (e) { showError(e); }
+    });
+    $$('[data-del]', ov).forEach(b => b.onclick = async () => {
+      const n = b.dataset.del;
+      if (!(await XueYu.confirmDialog('删除笔记本', `「${n}」里的笔记将自动归入「未分类」，确定删除？`))) return;
+      try { await api('/notes/folders/' + encodeURIComponent(n), {method: 'DELETE'}); toast('已删除', n); render(); }
+      catch (e) { showError(e); }
+    });
+  };
+  document.body.appendChild(ov);
+  render();
+};
+
+/* ============================================================
+   AI 助手：会话历史 + 流式输出 + 互斥状态 + 润色三方案
+   ============================================================ */
+function aiMsg(role, html) {
+  const div = document.createElement('div');
+  div.className = 'msg ' + (role === 'user' ? 'user' : 'bot');
+  div.innerHTML = (role === 'bot' ? '<div class="who"><span>✨ AI 助手</span></div>' : '') + html;
+  $('#ai-chat').appendChild(div);
+  $('#ai-chat').scrollTop = 1e6;
+  return div;
+}
+function renderChatEmpty() {
+  $('#ai-chat').innerHTML = '<div class="msg bot"><div class="who">✨ AI 助手</div>点上方按钮或直接问我，回复可插入笔记。</div>';
+}
+
+/* 会话历史 */
+async function loadChats() {
+  if (!curId) return;
+  const list = await api(`/notes/${curId}/chats`).catch(() => []);
+  $('#chat-select').innerHTML = '<option value="">— 选择历史对话 —</option>' +
+    list.map(c => `<option value="${c.id}" ${c.id === aiChatId ? 'selected' : ''}>${esc(c.title)}（${c.count} 条）</option>`).join('');
+}
+$('#chat-select').onchange = async () => {
+  if (aiBusy) return toast(`「${aiBusy.label}」正在进行中，等它完成或取消后再切换`, '', 'err');
+  const cid = $('#chat-select').value;
+  if (!cid) { renderChatEmpty(); aiChatId = null; aiMessages = []; return; }
+  const data = await api(`/notes/${curId}/chats/${cid}`);
+  aiChatId = cid; aiMessages = data.messages || [];
+  $('#ai-chat').innerHTML = '';
+  for (const m of aiMessages) {
+    const div = aiMsg(m.role === 'user' ? 'user' : 'bot', md(m.content));
+    if (m.sources?.length) appendSources(div, m.sources);
+  }
+};
+$('#chat-new').onclick = async () => {
+  if (aiBusy) return toast(`「${aiBusy.label}」正在进行中，确定等它完成`, '', 'err');
+  const c = await api(`/notes/${curId}/chats`, {method: 'POST', body: {title: '新对话'}});
+  aiChatId = c.id; aiMessages = [];
+  renderChatEmpty(); loadChats();
+  toast('新对话已开始', '', 'ok');
+};
+$('#chat-del').onclick = async () => {
+  if (!aiChatId) return toast('当前没有选中的历史对话', '', 'err');
+  if (!(await XueYu.confirmDialog('删除对话', '删除当前选中的对话历史？'))) return;
+  await api(`/notes/${curId}/chats/${aiChatId}`, {method: 'DELETE'});
+  aiChatId = null; aiMessages = []; renderChatEmpty(); loadChats();
+};
+
+function appendSources(div, sources) {
+  div.insertAdjacentHTML('beforeend', `<div class="src">🌐 来源：${sources.map(s =>
+    `<a href="${esc(s.url)}" target="_blank" rel="noopener">[${s.ref_id}] ${esc(s.title.slice(0, 18))}</a>`).join(' ')}</div>`);
+}
+
+/* 互斥状态管理 */
+function setBusy(label, chipEl) {
+  aiBusy = {label, chip: chipEl || null, abort: new AbortController()};
+  if (chipEl) { chipEl.classList.add('busy', 'active'); }
+  const st = $('#ai-status');
+  st.textContent = label + '…'; st.classList.add('busy');
+}
+function clearBusy() {
+  if (aiBusy?.chip) aiBusy.chip.classList.remove('busy', 'active');
+  aiBusy = null;
+  const st = $('#ai-status');
+  st.textContent = '就绪'; st.classList.remove('busy');
+}
+/* 正在忙时点其他功能 → 询问是否取消当前 */
+async function guardBusy(nextLabel) {
+  if (!aiBusy) return true;
+  const goOn = await XueYu.confirmDialog('任务进行中', `「${aiBusy.label}」正在进行中，确定取消它并开始「${nextLabel}」吗？`);
+  if (goOn) {
+    aiBusy.abort.abort();
+    clearBusy();
+    return true;
+  }
+  return false;
+}
+
+/* 流式执行 */
+async function runStreaming(action, userLabel, message, {chip = null, silentUser = false} = {}) {
+  if (!curId) { toast('先选中一篇笔记', '', 'err'); return null; }
+  if (!(await guardBusy(userLabel))) return null;
+  setBusy(userLabel, chip);
+  if (!silentUser) aiMsg('user', esc(message || userLabel));
+  const div = aiMsg('bot', '');
+  div.querySelector('.who').insertAdjacentHTML('beforeend', `<span class="ai-status busy">${userLabel}</span>`);
+  const bodyDiv = document.createElement('div');
+  div.appendChild(bodyDiv);
+  const cursor = document.createElement('span');
+  cursor.className = 'cursor';
+  div.appendChild(cursor);
+  let full = '', sources = null, failed = null;
+  try {
+    const res = await fetch(`/api/notes/${curId}/ai/stream`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({action, message, history: aiMessages.slice(-8), thinking, web: webOn}),
+      signal: aiBusy.abort.signal,
+    });
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let buf = '';
+    while (true) {
+      const {done, value} = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, {stream: true});
+      let idx;
+      while ((idx = buf.indexOf('\n\n')) >= 0) {
+        const line = buf.slice(0, idx).trim();
+        buf = buf.slice(idx + 2);
+        if (!line.startsWith('data: ')) continue;
+        const ev = JSON.parse(line.slice(6));
+        if (ev.type === 'delta') { full += ev.text; bodyDiv.innerHTML = md(full); $('#ai-chat').scrollTop = 1e6; }
+        else if (ev.type === 'sources') { sources = ev.sources; }
+        else if (ev.type === 'status') { div.querySelector('.who .ai-status').textContent = ev.text; }
+        else if (ev.type === 'error') { failed = ev.message; }
+      }
+    }
+  } catch (e) {
+    if (e.name === 'AbortError') { /* 用户取消 */ }
+    else failed = e.message;
+  }
+  cursor.remove();
+  div.querySelector('.who .ai-status')?.remove();
+  clearBusy();
+  if (failed) { bodyDiv.insertAdjacentHTML('beforeend', `<div style="color:var(--org)">⚠️ ${esc(failed)}</div>`); return null; }
+  bodyDiv.innerHTML = md(full);
+  if (window.renderMathInElement) {
+    try { renderMathInElement(bodyDiv, {delimiters: [{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}]}); } catch {}
+  }
+  if (sources) appendSources(div, sources);
+  // 记录进当前会话
+  aiMessages.push({role: 'user', content: message || userLabel});
+  aiMessages.push({role: 'assistant', content: full, sources});
+  saveChatSession();
+  return {text: full, div};
+}
+
+function saveChatSession() {
+  if (!aiChatId || !curId) return;
+  const title = (aiMessages.find(m => m.role === 'user')?.content || '新对话').slice(0, 18);
+  api(`/notes/${curId}/chats/${aiChatId}`, {method: 'PUT', body: {title, messages: aiMessages}})
+    .then(() => loadChats()).catch(() => {});
+}
+
+/* 快捷按钮 */
+$$('.ai-quick .chip').forEach(ch => ch.onclick = async () => {
+  if (!curId) return toast('先选中一篇笔记', '', 'err');
+  const act = ch.dataset.act;
+  if (act === 'continue') {
+    pendingContinue = !pendingContinue;
+    ch.classList.toggle('sel', pendingContinue);
+    $('#ai-input').placeholder = pendingContinue ? '描述续写要求，回车发送（留空则自然续写）' : '问点什么…';
+    if (pendingContinue) $('#ai-input').focus();
+    return;
+  }
+  if (act === 'quiz') {
+    const count = await pickDialog('出自测题：选题量', [
+      {id: '3', title: '3 题', icon: '❓'}, {id: '5', title: '5 题', icon: '❓'},
+      {id: '8', title: '8 题', icon: '❓'}, {id: '10', title: '10 题', icon: '❓'},
+      {id: '__custom__', title: '✏️ 自定义题量…', icon: '⚙'}]);
+    if (!count) return;
+    let n = +count.id;
+    if (count.id === '__custom__') {
+      const v = await XueYu.promptDialog('自定义题量', {label: '题目数量（3-20）', value: '6'});
+      if (!v) return;
+      n = Math.max(1, Math.min(20, parseInt(v) || 6));
+    }
+    if (!(await guardBusy('自测题'))) return;
+    setBusy('自测题', ch);
+    aiMsg('user', `❓ 出 ${count.id} 道自测题`);
+    try {
+      const r = await api(`/notes/${curId}/quiz`, {method: 'POST', body: {count: +count.id}});
+      const div = aiMsg('bot', `已生成自测题并保存为笔记附件：<b>${esc(r.name)}</b>（不写进正文）`);
+      const view = document.createElement('span');
+      view.className = 'ins'; view.textContent = '👁 查看自测题';
+      view.onclick = () => showQuizModal(r.name, r.content);
+      div.appendChild(view);
+      aiMessages.push({role: 'user', content: `出自测题 ${count.id} 题`}, {role: 'assistant', content: `已生成附件 ${r.name}`});
+      saveChatSession();
+    } catch (e) { aiMsg('bot', `<span style="color:var(--org)">${esc(e.message)}</span>`); }
+    clearBusy();
+    return;
+  }
+  if (act === 'polish') {
+    if (!(await guardBusy('润色'))) return;
+    setBusy('润色（三方案）', ch);
+    aiMsg('user', '🪄 润色（三个方案供选择）');
+    try {
+      const r = await api(`/notes/${curId}/polish`, {method: 'POST', body: {count: 3}});
+      showPolishModal(r.variants);
+      aiMessages.push({role: 'user', content: '润色'}, {role: 'assistant', content: '已生成三个润色方案'});
+      saveChatSession();
+    } catch (e) { aiMsg('bot', `<span style="color:var(--org)">${esc(e.message)}</span>`); }
+    clearBusy();
+    return;
+  }
+  // summarize（流式）
+  if (!(await guardBusy('总结全文'))) return;
+  const r = await runStreaming(act, '总结全文', null, {chip: ch});
+  if (r) curNote.ai_assisted = true;
+});
+
+/* 润色三方案弹窗 */
+function showPolishModal(variants) {
+  const ov = document.createElement('div');
+  ov.className = 'overlay show';
+  ov.innerHTML = `<div class="modal" style="width:min(760px,94vw)">
+    <div class="modal-head">🪄 润色方案（选一个应用，会先存历史版本）<span class="x" data-x>✕</span></div>
+    <div class="modal-body" style="max-height:64vh">
+      ${variants.map((v, i) => `
+        <div class="variant">
+          <h4><span class="dtag ${i === 0 ? 'g' : i === 1 ? 'b' : 'p'}">${esc(v.style)}</span>
+            <button class="btn sm" data-apply="${i}">⤴ 应用此方案</button></h4>
+          <div class="vbody md" id="variant-${i}"></div>
+        </div>`).join('')}
+    </div>
+    <div class="modal-foot"><button class="btn sm ghost" data-x>取消</button></div></div>`;
+  document.body.appendChild(ov);
+  variants.forEach((v, i) => mdRender($('#variant-' + i, ov), v.text));
+  $$('[data-x]', ov).forEach(b => b.onclick = () => ov.remove());
+  ov.onclick = e => { if (e.target === ov) ov.remove(); };
+  $$('[data-apply]', ov).forEach(b => b.onclick = async () => {
+    const v = variants[+b.dataset.apply];
+    try { await api(`/notes/${curId}/snapshot`, {method: 'POST', body: {label: '润色前 · ' + v.style}}); } catch {}
+    $('#editor-area').value = v.text.trim();
+    dirty = true; renderLive(); saveNote();
+    ov.remove();
+    toast('已应用润色方案', v.style + ' · 原内容在版本历史', 'ok');
+  });
+}
+
+/* 思考程度 + 联网 */
+$('#think-seg').onclick = e => {
+  const b = e.target.closest('button'); if (!b) return;
+  $$('#think-seg button').forEach(x => x.classList.toggle('on', x === b));
+  thinking = b.dataset.t;
+};
+$('#web-chip').onclick = function () { webOn = this.classList.toggle('grn-on'); };
+
+/* 自测题弹窗 */
+function showQuizModal(name, content) {
+  const ov = document.createElement('div');
+  ov.className = 'overlay show';
+  ov.innerHTML = `<div class="modal" style="width:min(680px,94vw)">
+    <div class="modal-head">❓ ${esc(name)}<span class="x" data-x>✕</span></div>
+    <div class="modal-body md" style="max-height:66vh">${md(content)}</div>
+    <div class="modal-foot"><span style="margin-right:auto;font-size:11px;color:var(--dim);font-weight:700">📎 已保存为该笔记的附件</span>
+      <button class="btn sm ghost" data-x>关闭</button></div></div>`;
+  document.body.appendChild(ov);
+  $$('[data-x]', ov).forEach(b => b.onclick = () => ov.remove());
+  ov.onclick = e => { if (e.target === ov) ov.remove(); };
+}
+$('#assets-btn')?.remove();
+
+async function sendChat() {
+  const q = $('#ai-input').value.trim();
+  const contReq = pendingContinue;
+  if (!q && !contReq) return;
+  $('#ai-input').value = '';
+  if (contReq) {
+    pendingContinue = false;
+    $('#continue-chip').classList.remove('sel');
+    $('#ai-input').placeholder = '问点什么…';
+    const r = await runStreaming('continue', '续写' + (q ? '：' + q : ''), q, {chip: $('#continue-chip')});
+    if (r) {
+      $('#editor-area').value += ($('#editor-area').value && !$('#editor-area').value.endsWith('\n') ? '\n\n' : '') + r.text.trim() + '\n';
+      dirty = true; renderLive(); saveNote();
+      r.div.insertAdjacentHTML('beforeend', '<div class="src">✓ 已自动追加到笔记末尾</div>');
+    }
+    return;
+  }
+  const r = await runStreaming('chat', '提问', q);
+  if (r) curNote.ai_assisted = true;
+}
+$('#ai-send').onclick = sendChat;
+$('#ai-input').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) sendChat(); });
+
+/* 面板收起键在面板头上 */
+$('#ai-collapse').onclick = () => {
+  const rail = document.body.classList.toggle('no-ai');
+  $('#ai-collapse').textContent = rail ? '⤢' : '✕';
+  $('#ai-collapse').title = rail ? '展开 AI 面板' : '收起 AI 面板';
+  localStorage.setItem('xueyu-no-ai', rail ? '1' : '0');
+};
+const aiExpand = document.getElementById('expand-ai');
+if (aiExpand) aiExpand.onclick = () => document.body.classList.remove('no-ai');
+
+/* AI 面板宽度拖拽（240–520px） */
+(() => {
+  const handle = $('#ai-resize'), side = $('#ai-side');
+  let startX = 0, startW = 0, dragging = false;
+  handle.addEventListener('mousedown', e => {
+    dragging = true; startX = e.clientX; startW = side.offsetWidth;
+    e.preventDefault();
+    const move = ev => {
+      if (!dragging) return;
+      const w = Math.min(520, Math.max(240, startW + (startX - ev.clientX)));
+      side.style.width = w + 'px';
+    };
+    const up = () => {
+      dragging = false;
+      document.removeEventListener('mousemove', move);
+      document.removeEventListener('mouseup', up);
+      localStorage.setItem('xueyu-ai-width', side.style.width);
+    };
+    document.addEventListener('mousemove', move);
+    document.addEventListener('mouseup', up);
+  });
+  const savedW = parseInt(localStorage.getItem('xueyu-ai-width'));
+  if (savedW >= 240 && savedW <= 520) side.style.width = savedW + 'px';
+})();
+
+XueYu.onPageTools(() => {
+  $('#ver-btn').onclick = verHistory;
+});
+
+/* ⌘F 列表筛选 */
+window.pageSearch = async () => {
+  filter = (await XueYu.promptDialog('筛选笔记', {label: '关键词'}) || '').toLowerCase();
+  loadList();
+};
+
+/* ---------- 启动 ---------- */
+(async () => {
+  setMode(localStorage.getItem(MODE_KEY) || 'split');
+  await loadFolders();
+  await loadList();
+  const params = new URLSearchParams(location.search);
+  if (params.get('id')) await openNote(params.get('id'));
+  else if (notes.length) await openNote(notes[0].id);
+})();
+</script>
+</body>
+</html>

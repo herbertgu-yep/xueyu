@@ -1,0 +1,61 @@
+[project]
+name = "xueyu"
+version = "0.1.0"
+description = "学屿 · 本地优先的 macOS 桌面 AI 学习助手（艾宾浩斯复习计划 / AI 笔记 / 书架 RAG / 深度研究）"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "XueYu Contributors" }]
+keywords = ["learning", "ebbinghaus", "rag", "ai-assistant", "pywebview", "local-first"]
+
+dependencies = [
+  # Web 服务层
+  "fastapi>=0.115",
+  "uvicorn>=0.32",
+  "python-multipart>=0.0.12",
+  "pydantic>=2.9",
+  # 存储层
+  "sqlmodel>=0.0.22",
+  # AI 层
+  "litellm>=1.52",
+  # 文档解析
+  "pymupdf>=1.24",
+  "python-docx>=1.1",
+  "python-pptx>=1.0",
+  # 笔记 frontmatter（Obsidian 兼容）
+  "python-frontmatter>=1.1",
+  # 调度 / 网络
+  "apscheduler>=3.10",
+  "httpx>=0.27",
+  "trafilatura>=1.12",
+  "ddgs>=9.0",
+  "rank-bm25>=0.2.2",  # 混合检索 BM25 分支
+  # 桌面壳
+  "pywebview>=5.4",
+]
+
+[project.optional-dependencies]
+# RAG 向量检索（体积较大，默认安装）
+rag = [
+  "llama-index-core>=0.11",
+  "llama-index-vector-stores-chroma>=0.2",
+  "llama-index-embeddings-huggingface>=0.3",
+  "chromadb>=0.5",
+  "sentence-transformers>=3.2",
+]
+# 扫描件 OCR（可选加速器，缺失时自动跳过 OCR 路径）
+ocr = ["rapidocr-onnxruntime>=1.4"]
+
+[project.scripts]
+xueyu = "desktop.shell:main"
+
+[tool.uv]
+# rag 依赖一并装上，保证开箱即用
+default-groups = "all"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app", "desktop"]

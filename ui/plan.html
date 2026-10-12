@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>学屿 · 学习计划</title>
+<link rel="stylesheet" href="/mac.css">
+<link rel="stylesheet" href="/app.css">
+<style>
+  .plan-top{display:flex;align-items:center;gap:14px;margin-bottom:20px;flex-wrap:wrap}
+  .plan-top h1{font-size:20px;font-weight:850}
+  .plan-top .right{margin-left:auto;display:flex;gap:10px;align-items:center}
+
+  .rv-item{display:flex;align-items:center;gap:12px;padding:11px 0;border-top:2px dashed #e0d6bd;font-size:13.5px}
+  .rv-item:first-of-type{border-top:none}
+  .rv-item .rv-main{flex:1;min-width:0}
+  .rv-item .rv-main b{font-size:13.5px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .rv-item .rv-sub{font-size:11px;color:var(--dim)}
+  .rv-item .rv-timer{font-size:13px;min-width:56px;text-align:right;color:var(--dim)}
+  .rv-item.running .rv-timer{color:var(--blu)}
+  .rv-item.running .rv-main b::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--grn);margin-right:7px;animation:p 1.5s infinite}
+  .rv-item.paused .rv-timer{color:var(--org)}
+  .rv-item.done .rv-main b{text-decoration:line-through wavy rgba(232,104,58,.6);color:var(--dim)}
+  .rv-item.done .rv-timer{color:var(--grn)}
+  .rv-btns{display:flex;gap:6px;flex-shrink:0}
+
+  .day-cols{display:grid;grid-template-columns:1.3fr 1fr;gap:16px;align-items:start}
+  .timeline{position:relative;height:560px;margin-top:6px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px}
+  .week{display:grid;grid-template-columns:repeat(7,1fr);gap:9px}
+  .day{background:var(--card);border:2px solid var(--ink);border-radius:12px 4px 13px 5px;padding:10px 6px;text-align:center;min-height:86px;cursor:default}
+  .day .dw{font-size:10.5px;color:var(--dim);font-weight:700}
+  .day .dn{font-size:16px;font-weight:850;margin:1px 0 6px}
+  .day .dots{display:flex;gap:3px;justify-content:center;flex-wrap:wrap}
+  .day .dots i{width:7px;height:7px;border-radius:50%;border:1.5px solid var(--ink)}
+  .day.today{background:var(--ylw);transform:rotate(-1.5deg);box-shadow:3px 3px 0 var(--ink)}
+  .day.today .dw{color:var(--ink)}
+  .day.off{opacity:.55}
+
+  .month{display:grid;grid-template-columns:repeat(7,1fr);gap:7px}
+  .mh{font-size:11px;font-weight:800;color:var(--dim);text-align:center;padding:4px 0}
+  .mc{background:var(--card);border:2px solid var(--ink);border-radius:10px 4px 11px 5px;min-height:64px;padding:6px 8px;font-size:12px;font-weight:800;position:relative}
+  .mc .dots{position:absolute;bottom:6px;left:8px;display:flex;gap:3px}
+  .mc .dots i{width:6px;height:6px;border-radius:50%;border:1.5px solid var(--ink)}
+  .mc.out{opacity:.4}
+  .mc.today{background:var(--ylw);box-shadow:3px 3px 0 var(--ink)}
+
+  .q-row{display:flex;align-items:center;gap:12px;padding:9px 0;border-top:2px dashed #e0d6bd;font-size:13px}
+  .q-row:first-of-type{border-top:none}
+  .q-row .qdate{font-size:10.5px;font-weight:800;text-align:center;line-height:1.3;min-width:44px}
+  .q-row .qdate b{display:block;font-size:14px}
+  .q-row .qt{flex:1;min-width:0}
+  .q-row .qt b{font-size:13px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .q-row .qt span{font-size:11px;color:var(--dim)}
+  .qprog{display:flex;gap:3px;align-items:center}
+  .qprog i{width:8px;height:8px;border-radius:50%;border:1.5px solid var(--ink);background:#fff}
+  .qprog i.f{background:var(--grn)}
+  .qprog i.now{background:var(--ylw);transform:scale(1.25)}
+  .newplan-tl{position:relative;height:2px;background:var(--ink);margin:30px 4px 0}
+  .tl-dot{position:absolute;top:-7px;transform:translateX(-50%)}
+  .tl-dot i{display:block;width:13px;height:13px;border-radius:50%;border:2.5px solid var(--ink);background:var(--grn)}
+  .tl-dot.first i{background:var(--org);transform:scale(1.2)}
+  .tl-dot span{position:absolute;top:-27px;left:50%;transform:translateX(-50%) rotate(-4deg);font-size:10px;font-weight:800;white-space:nowrap;background:#fff;border:1.5px solid var(--ink);border-radius:7px 3px 8px 4px;padding:0 5px}
+  .tl-dot em{position:absolute;top:12px;left:50%;transform:translateX(-50%);font-size:9.5px;color:var(--dim);font-style:normal;white-space:nowrap}
+  .rv-act{cursor:pointer}
+  @media(max-width:900px){.day-cols{grid-template-columns:1fr}.week{grid-template-columns:repeat(4,1fr)}}
+</style>
+</head>
+<body data-page="plan">
+<div class="app-shell">
+  <header class="app-header" id="app-header" data-title="📅 学习计划">
+      <span class="app-title"><span class="ico">🏝️</span> 学屿</span>
+      <span class="sep-v"></span>
+      <span class="page-title">📅 学习计划 <span class="sub">艾宾浩斯自动排期</span></span>
+      <div class="tb-tools">
+        <button class="tb-btn" id="global-search" title="全局搜索 ⌘K">🔍</button>
+      <div id="page-tools"><button class="tb-btn" onclick="leaveDialog()" title="所有计划到期日顺延">🌴 请假</button>
+        <button class="tb-btn" onclick="newPlanDialog()">＋ 新建计划 <kbd>⌘N</kbd></button></div>
+      </div>
+    </header>
+  <div class="app">
+    <aside class="sidebar" id="app-sidebar">
+        <div class="side-head" style="display:flex;align-items:center;padding:2px 6px 8px;border-bottom:2px dashed #e0d6bd;margin-bottom:6px">
+          <b style="font-size:12px;color:var(--dim);letter-spacing:1px">学屿</b>
+          <button class="tb-btn" id="side-collapse" title="收起侧边栏" style="margin-left:auto;width:26px;height:26px;min-width:26px">◧</button>
+        </div>
+        <div class="side-label">今天</div>
+        <a class="side-it" href="/" data-nav="index" title="今日清单"><span class="ico2">☀️</span><span class="txt">今日清单</span><span class="cnt" id="cnt-today"></span></a>
+        <a class="side-it" href="/plan" data-nav="plan" title="学习计划"><span class="ico2">📅</span><span class="txt">学习计划</span><span class="cnt" id="cnt-plans"></span></a>
+        <div class="side-label">学习资产</div>
+        <a class="side-it" href="/notes" data-nav="notes" title="笔记"><span class="ico2">📝</span><span class="txt">笔记</span><span class="cnt" id="cnt-notes"></span></a>
+        <a class="side-it" href="/shelf" data-nav="shelf" title="书架"><span class="ico2">📚</span><span class="txt">书架</span><span class="cnt" id="cnt-shelf"></span></a>
+        <a class="side-it" href="/research" data-nav="research" title="深度研究"><span class="ico2">🔬</span><span class="txt">深度研究</span><span class="cnt" id="cnt-research"></span></a>
+        <a class="side-it" href="/settings" data-nav="settings" style="margin-top:auto">⚙️ 设置</a>
+      </aside>
+    <main class="main" id="main">
+      <div class="plan-top">
+        <h1><span class="hl">学习计划</span></h1>
+        <div class="seg" id="view-seg">
+          <button class="on" data-view="day">日</button><button data-view="week">周</button><button data-view="month">月</button>
+        </div>
+        <div class="right"><span id="week-brief" style="font-size:12px;color:var(--dim);font-weight:700"></span></div>
+      </div>
+
+      <!-- 日视图 -->
+      <div class="view-day">
+        <div class="day-cols">
+          <div class="card">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px;flex-wrap:wrap">
+              <b style="font-size:14px" id="queue-title">⏰ 今日复习队列</b>
+              <div style="display:flex;gap:6px;align-items:center">
+                <button class="tb-btn" id="d-prev" title="上一日">‹</button>
+                <span style="font-size:11.5px;color:var(--dim);font-weight:800" id="d-label"></span>
+                <button class="tb-btn" id="d-next" title="下一日">›</button>
+                <button class="tb-btn" id="d-today" style="display:none">回到今日</button>
+              </div>
+              <span style="font-size:11.5px;color:var(--dim);font-weight:800" id="queue-progress"></span>
+            </div>
+            <div id="queue-list"></div>
+            <button class="btn sm" id="enter-review" style="margin-top:14px">🎯 进入专注复习模式</button>
+          </div>
+          <div class="card">
+            <b style="font-size:14px">🗓 今日安排</b>
+            <div class="timeline" id="day-timeline"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 周视图 -->
+      <div class="view-week" style="display:none">
+        <div style="display:flex;gap:6px;align-items:center;margin-bottom:12px">
+          <button class="tb-btn" id="w-prev">‹ 上一周</button>
+          <b id="w-label" style="font-size:13px"></b>
+          <button class="tb-btn" id="w-next">下一周 ›</button>
+          <button class="tb-btn" id="w-today" style="display:none">回到本周</button>
+        </div>
+        <div class="week" id="week-grid"></div>
+        <p style="font-size:12px;color:var(--dim);margin-top:14px">🟢 已完成 · 🟡 进行中 · ⚪ 待复习 —— 每天任务量由艾宾浩斯自动排期</p>
+        <div class="card" style="margin-top:16px">
+          <b style="font-size:14px">📊 本周统计</b>
+          <div style="display:flex;gap:32px;margin-top:10px;font-size:13px;flex-wrap:wrap" id="week-stats"></div>
+        </div>
+      </div>
+
+      <!-- 月视图 -->
+      <div class="view-month" style="display:none">
+        <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px">
+          <button class="tb-btn" id="m-prev">‹</button>
+          <b id="m-label" style="font-size:15px"></b>
+          <button class="tb-btn" id="m-next">›</button>
+          <button class="tb-btn" id="m-today" style="display:none">回到本月</button>
+        </div>
+        <div class="month">
+          <div class="mh">一</div><div class="mh">二</div><div class="mh">三</div><div class="mh">四</div><div class="mh">五</div><div class="mh">六</div><div class="mh">日</div>
+        </div>
+        <div class="month" id="month-grid"></div>
+        <p style="font-size:12px;color:var(--dim);margin-top:14px">圆点 = 当日有复习任务 · 🟡 今天 · 复习点按艾宾浩斯 + 正确率自动落在未来日期上</p>
+      </div>
+
+      <!-- 接下来的复习点 -->
+      <section class="sec" style="margin-top:34px">
+        <span class="tape t-blu">🔁 接下来的复习点</span>
+        <div class="sec-body card" id="upcoming-list"></div>
+      </section>
+
+      <!-- 进行中的计划 -->
+      <section class="sec">
+        <span class="tape t-org">📚 进行中的计划</span>
+        <div class="sec-body card" id="plans-list"></div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<script src="/vendor/marked.min.js"></script>
+<script src="/vendor/purify.min.js"></script>
+<script src="/app.js"></script>
+<script>
+// 标识符（$ / api / toast / esc 等）由 app.js 全局提供
+let todayData = null;          // 今天的数据（计时按钮等用）
+let dayData = null;            // 当前选中日数据
+let selectedDate = null;       // null = 今天
+const localISO = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+/* 周/月统一的日期圆点：🟢已完成 ×n + ⚪待复习 ×m（上限 5 个） */
+const dotHTML = (done, due, isToday) => {
+  const MAX = 5;
+  const g = Math.min(done, MAX);
+  const w = Math.min(Math.max(due - done, 0), MAX - g);
+  return '<i style="background:var(--grn)"></i>'.repeat(g) +
+         `<i style="background:${isToday && w ? 'var(--org)' : '#fff'}"></i>`.repeat(w);
+};
+
+/* ---------- 今日队列 ---------- */
+function queueItemHTML(it) {
+  const st = it.run_state;
+  let btns = '';
+  if (st === 'running') btns = `<button class="btn sm ylw rv-act" data-act="pause" data-id="${it.id}">⏸ 暂停</button>
+    <button class="btn sm blu rv-act" data-act="finish" data-id="${it.id}">✓ 完成复习</button>`;
+  else if (st === 'paused') btns = `<button class="btn sm grn rv-act" data-act="start" data-id="${it.id}">▶ 继续</button>
+    <button class="btn sm blu rv-act" data-act="finish" data-id="${it.id}">✓ 完成复习</button>`;
+  else if (it.done_today) btns = `<span class="dtag g">✓ 已完成</span>`;
+  else btns = `<button class="btn sm grn rv-act" data-act="start" data-id="${it.id}">▶ 开始复习</button>`;
+  return `<div class="rv-item ${st === 'running' ? 'running' : st === 'paused' ? 'paused' : it.done_today ? 'done' : ''}" data-id="${it.id}" data-state="${st}">
+    <div class="rv-main"><b>${esc(it.title)}</b>
+      <span class="rv-sub">${it.stage === 0 ? '新学' : esc(it.stage_label) + ' 复习点'} · 预计 ${it.daily_minutes} 分钟 · EF ${it.easiness_factor}</span></div>
+    <span class="dtag ${it.stage === 0 ? 'g' : 'o'}">${esc(it.stage_label)}</span>
+    <span class="rv-timer timer">${fmtSec(it.elapsed_sec)}</span>
+    <div class="rv-btns">${btns}</div></div>`;
+}
+
+async function loadToday() {
+  todayData = await api('/plan/today');
+  await loadDay(selectedDate);
+}
+
+const fmtDateCn = ds => {
+  const d = new Date(ds + 'T00:00:00');
+  return `${d.getMonth() + 1} 月 ${d.getDate()} 日 · 周${'一二三四五六日'[d.getDay()]}`;
+};
+
+async function loadDay(date) {
+  selectedDate = date;
+  dayData = await api('/plan/day' + (date ? '?date=' + date : ''));
+  const isToday = dayData.is_today;
+  $('#queue-title').textContent = isToday ? '⏰ 今日复习队列' : `🗓 ${fmtDateCn(dayData.date)}${dayData.is_future ? ' · 排期预览' : ''}`;
+  $('#d-label').textContent = fmtDateCn(dayData.date);
+  $('#d-today').style.display = isToday ? 'none' : '';
+  $('#queue-progress').textContent = dayData.is_past
+    ? `当天完成 ${dayData.completed.length} 项 · ${fmtHM(dayData.focus_sec)}`
+    : (dayData.total ? `已完成 ${dayData.done} / ${dayData.total}` : '');
+  $('#enter-review').style.display = isToday ? '' : 'none';
+  const listEl = $('#queue-list');
+  if (dayData.is_past) {
+    const doneRows = dayData.completed.map(c => `
+      <div class="rv-item done"><div class="rv-main"><b>${esc(c.title)}</b>
+        <span class="rv-sub">用时 ${fmtHM(c.duration_sec)}${c.accuracy != null ? ' · 正确率 ' + Math.round(c.accuracy * 100) + '%' : ''}</span></div>
+        <span class="dtag g">✓ 已完成</span></div>`);
+    const undoneRows = (dayData.undone || []).map(u => `
+      <div class="rv-item" style="opacity:.5"><div class="rv-main"><b>${esc(u.title)}</b>
+        <span class="rv-sub">当天未完成 · 已自动顺延${u.due_date && u.due_date > dayData.date ? '（现排期 ' + u.due_date.slice(5) + '）' : '至今日'}</span></div>
+        <span class="dtag" style="background:#eee7d6;color:#8a8069">✗ 未完成</span></div>`);
+    listEl.innerHTML = (doneRows.length || undoneRows.length)
+      ? doneRows.join('') + undoneRows.join('')
+      : `<div class="empty"><span class="big">📭</span>这一天没有复习记录</div>`;
+  } else {
+    listEl.innerHTML = dayData.queue.length
+      ? dayData.queue.map(queueItemHTML).join('')
+      : `<div class="empty"><span class="big">${dayData.is_future ? '📌' : '🎉'}</span>${dayData.is_future ? '这一天暂无复习安排' : '今天没有到期复习，自由安排！'}</div>`;
+  }
+  // 右侧「当日安排」卡
+  const tl = $('#day-timeline');
+  const rows = dayData.is_past ? dayData.completed : dayData.queue;
+  if (!rows.length) { tl.innerHTML = '<div class="empty">这一天没有安排</div>'; }
+  else {
+    tl.innerHTML = rows.map(it => {
+      const label = dayData.is_past ? '已完成'
+        : it.run_state === 'running' ? '进行中' : it.run_state === 'paused' ? '已暂停'
+        : it.done_today ? '已完成' : dayData.is_future ? '计划' : '待复习';
+      const cls = /进行中/.test(label) ? 'b' : /已完成/.test(label) ? 'g' : dayData.is_future ? 'b' : '';
+      const secs = dayData.is_past ? (it.duration_sec || 0) : (it.elapsed_sec || 0);
+      return `<div class="card" style="width:100%;padding:10px 14px;display:flex;gap:10px;align-items:center">
+        <span class="dtag ${cls}">${label}</span>
+        <b style="flex:1;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(it.title)}</b>
+        <span class="timer" style="font-size:12px;color:var(--dim)">${fmtSec(secs)}</span>
+      </div>`;
+    }).join('') + `<div style="font-size:11px;color:var(--dim)">⏱ 暂停期间不计时</div>`;
+  }
+}
+
+function shiftDate(days) {
+  const base = selectedDate ? new Date(selectedDate + 'T00:00:00') : new Date();
+  base.setDate(base.getDate() + days);
+  loadDay(localISO(base)).catch(showError);
+}
+$('#d-prev').onclick = () => shiftDate(-1);
+$('#d-next').onclick = () => shiftDate(1);
+$('#d-today').onclick = () => loadDay(null).catch(showError);
+
+$('#queue-list')?.addEventListener('click', async e => {
+  const btn = e.target.closest('.rv-act'); if (!btn) return;
+  const id = btn.dataset.id, act = btn.dataset.act;
+  try {
+    if (act === 'finish') {
+      const r = await api(`/review/${id}/finish`, {method: 'POST', body: {}});
+      toast('复习完成 🎉', `${fmtSec(r.last_session.duration_sec)} · 下次复习 ${r.next || '已毕业'}`, 'ok');
+    } else {
+      await api(`/review/${id}/${act}`, {method: 'POST', body: {}});
+    }
+    await loadToday();
+    loadPlans();
+  } catch (err) { showError(err); }
+});
+
+$('#enter-review').onclick = () => {
+  if (!todayData || !todayData.queue.length) { toast('今天没有到期复习', '', ''); return; }
+  location.href = '/review';
+};
+
+/* ---------- 周视图 ---------- */
+let weekAnchor = null;
+async function loadWeek() {
+  const w = await api('/plan/week' + (weekAnchor ? '?anchor=' + weekAnchor : ''));
+  $('#w-label').textContent = `${w.days[0].date.slice(5).replace('-', '/')} – ${w.days[6].date.slice(5).replace('-', '/')}`;
+  $('#w-today').style.display = weekAnchor ? '' : 'none';
+  $('#week-grid').innerHTML = w.days.map(d => `
+    <div class="day ${d.is_today ? 'today' : d.future ? 'off' : ''}">
+      <div class="dw">${d.weekday}${d.is_today ? '·今天' : ''}</div><div class="dn">${d.day}</div>
+      <div class="dots">${d.future ? '' : dotHTML(d.done, d.due, d.is_today)}</div>
+    </div>`).join('');
+  $('#week-stats').innerHTML = `
+    <span>完成复习 <b>${w.week_done} 项</b></span><span>累计用时 <b>${fmtHM(w.week_seconds)}</b></span>
+    <span>平均正确率 <b>${w.week_accuracy != null ? Math.round(w.week_accuracy * 100) + '%' : '--'}</b></span>`;
+  $('#week-brief').textContent = `本周已完成 ${w.week_done} 项 · 累计 ${fmtHM(w.week_seconds)}`;
+}
+$('#w-prev').onclick = () => {
+  const base = weekAnchor ? new Date(weekAnchor + 'T00:00:00') : new Date();
+  base.setDate(base.getDate() - 7);
+  weekAnchor = localISO(base);
+  loadWeek().catch(showError);
+};
+$('#w-next').onclick = () => {
+  const base = weekAnchor ? new Date(weekAnchor + 'T00:00:00') : new Date();
+  base.setDate(base.getDate() + 7);
+  weekAnchor = localISO(base);
+  loadWeek().catch(showError);
+};
+$('#w-today').onclick = () => { weekAnchor = null; loadWeek().catch(showError); };
+
+/* ---------- 月视图 ---------- */
+let mCursor = new Date();
+async function loadMonth() {
+  const y = mCursor.getFullYear(), m = mCursor.getMonth() + 1;
+  const data = await api(`/plan/month?year=${y}&month=${m}`);
+  $('#m-label').textContent = `${y} 年 ${m} 月`;
+  const now = new Date();
+  $('#m-today').style.display = (y === now.getFullYear() && m === now.getMonth() + 1) ? 'none' : '';
+  const first = new Date(y, m - 1, 1);
+  const pad = (first.getDay() + 6) % 7; // 周一开头
+  const byDate = {};
+  data.days.forEach(d => byDate[d.date] = d);
+  let html = '';
+  for (let i = 0; i < pad; i++) html += `<div class="mc out"></div>`;
+  for (const d of data.days) {
+    const dots = `<div class="dots">${dotHTML(d.done, d.due, d.is_today)}</div>`;
+    html += `<div class="mc ${d.is_today ? 'today' : ''}">${d.day}${dots}</div>`;
+  }
+  $('#month-grid').innerHTML = html;
+}
+$('#m-prev').onclick = () => { mCursor.setMonth(mCursor.getMonth() - 1); loadMonth(); };
+$('#m-next').onclick = () => { mCursor.setMonth(mCursor.getMonth() + 1); loadMonth(); };
+$('#m-today').onclick = () => { mCursor = new Date(); loadMonth(); };
+
+/* ---------- 接下来的复习点 + 计划列表 ---------- */
+async function loadUpcoming() {
+  const rows = await api('/plan/upcoming?limit=8');
+  $('#upcoming-list').innerHTML = rows.length ? rows.map(r => {
+    const d = new Date(r.date + 'T00:00:00');
+    const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
+    const isTmr = d.toDateString() === tomorrow.toDateString();
+    return `<div class="q-row"><div class="qdate"><b>${d.getDate()}</b>${isTmr ? '明天' : d.toLocaleDateString('zh-CN', {weekday: 'short'})}</div>
+      <div class="qt"><b>${esc(r.title)}</b><span>第 ${r.point_index} 个复习点（${esc(r.point)}） · 上次正确率 ${r.last_accuracy != null ? Math.round(r.last_accuracy * 100) + '%' : '--'}</span></div>
+      <div class="qprog">${Array.from({length: 6}, (_, i) => `<i class="${i < r.points_done ? 'f' : i === r.points_done ? 'now' : ''}"></i>`).join('')}</div></div>`;
+  }).join('') : '<div class="empty">还没有排期中的复习点</div>';
+}
+
+async function loadPlans() {
+  const items = await api('/plan/items');
+  const active = items.filter(i => i.status === 'active');
+  $('#plans-list').innerHTML = active.length ? active.map(it => `
+    <div class="q-row"><div class="qdate"><b>${it.due_date ? it.due_date.slice(5).replace('-', '/') : '—'}</b>到期</div>
+      <div class="qt"><b>${esc(it.title)}${it.source_type !== 'manual' ? ` <span class="dtag ${it.source_type === 'note' ? 'b' : 'p'}">${it.source_type === 'note' ? '笔记' : it.source_type === 'document' ? '文档' : '报告'}</span>` : ''}${it.schedule_type && it.schedule_type !== 'normal' ? ` <span class="dtag o">${esc(it.schedule_label || '')}</span>` : ''}</b>
+        <span>下一个点 ${esc(it.stage_label)} · 累计用时 ${fmtHM(it.total_time_sec)}${it.flashcard_count ? ' · ' + it.flashcard_count + ' 张卡片' : ''}</span></div>
+      <div class="qprog">${Array.from({length: it.total_points || 6}, (_, i) => `<i class="${i < it.points_done ? 'f' : ''}"></i>`).join('')}</div>
+      <button class="btn sm ghost rv-act" data-act="sched" data-id="${it.id}" title="查看完整复习时间表">🗓</button>
+      <button class="btn sm ghost rv-act" data-act="delplan" data-id="${it.id}">🗑</button></div>`).join('')
+    : '<div class="empty">还没有学习计划</div>';
+  $('#plans-list').onclick = async e => {
+    const btn = e.target.closest('.rv-act'); if (!btn) return;
+    if (btn.dataset.act === 'sched') return schedDialog(+btn.dataset.id);
+    if (btn.dataset.act !== 'delplan') return;
+    if (!(await confirmDialog('删除计划', '删除后不再排期（历史记录保留），确定？'))) return;
+    await api('/plan/' + btn.dataset.id, {method: 'DELETE'});
+    loadPlans(); loadUpcoming(); loadToday();
+  };
+  XueYu.SHELL.overview && bootShell();
+}
+
+/* 完整复习时间表 */
+async function schedDialog(itemId) {
+  const r = await api('/plan/schedule/' + itemId);
+  const it = r.item;
+  const rows = r.points.map(p => {
+    const done = p.status === 'done';
+    return `<div class="q-row">
+      <div class="qdate"><b>${p.date ? p.date.slice(5).replace('-', '/') : '--'}</b>${p.status === 'done' ? '已完成' : r.graduated ? '—' : '计划'}</div>
+      <div class="qt"><b>${esc(p.label)}${p.index === 0 ? '' : '（第 ' + p.index + ' 个复习点）'}</b>
+        <span>${done ? '用时 ' + fmtHM(p.duration_sec || 0) + (p.accuracy != null ? ' · 正确率 ' + Math.round(p.accuracy * 100) + '%' : '') : r.graduated ? '已跳过' : '按艾宾浩斯排期'}</span></div>
+      <span class="dtag ${done ? 'g' : r.graduated ? '' : 'b'}">${done ? '✓' : r.graduated ? '—' : '待复习'}</span></div>`;
+  }).join('');
+  const ov = document.createElement('div');
+  ov.className = 'overlay show';
+  ov.innerHTML = `<div class="modal" style="width:min(520px,94vw)">
+    <div class="modal-head">🗓 ${esc(it.title)} · 完整时间表<span class="x" data-x>✕</span></div>
+    <div class="modal-body card" style="max-height:56vh">${rows}</div>
+    <div class="modal-foot"><span style="margin-right:auto;font-size:11px;color:var(--dim);font-weight:700">EF ${it.easiness_factor} · 已完成 ${it.points_done}/6 个复习点 · 累计 ${fmtHM(it.total_time_sec)}</span>
+      <button class="btn sm" data-x>关闭</button></div></div>`;
+  document.body.appendChild(ov);
+  $$('[data-x]', ov).forEach(b => b.onclick = () => ov.remove());
+  ov.onclick = e => { if (e.target === ov) ov.remove(); };
+}
+
+/* 请假：所有计划顺延 */
+async function leaveDialog() {
+  const days = await pickDialog('🌴 请假几天？', [
+    {id: '1', title: '1 天', sub: ''}, {id: '2', title: '2 天', sub: ''},
+    {id: '3', title: '3 天', sub: ''}, {id: '7', title: '一周', sub: ''},
+    {id: '14', title: '两周', sub: ''}, {id: '30', title: '一个月', sub: ''}]);
+  if (!days) return;
+  if (!(await confirmDialog('确认请假', `所有未毕业计划的到期日将整体顺延 ${days.id} 天，确定？`))) return;
+  try {
+    const r = await api('/plan/leave', {method: 'POST', body: {days: +days.id}});
+    toast('已请假 🌴', `${r.shifted} 个计划的到期日顺延了 ${r.days} 天`, 'ok');
+    await Promise.all([loadDay(selectedDate), loadUpcoming(), loadPlans()]);
+    bootShell();
+  } catch (e) { showError(e); }
+}
+
+/* ---------- 新建计划 ---------- */
+async function newPlanDialog() {
+  const ov = XueYu.SHELL.overview;
+  const duration = await pickDialog('每日投入时长', [
+    {id: '15', title: '☕ 15 分钟/天', sub: ''}, {id: '30', title: '📖 30 分钟/天', sub: '推荐'},
+    {id: '60', title: '🔥 1 小时/天', sub: ''}, {id: '120', title: '🚀 2 小时/天', sub: ''}]);
+  if (!duration) return;
+  const minutes = parseInt(duration.id);
+  const sched = await pickDialog('排期档位', [
+    {id: 'normal', title: '📅 艾宾浩斯 · 正常', sub: 'D1/2/4/7/15/30'},
+    {id: 'short', title: '⚡ 艾宾浩斯 · 短周期', sub: 'D1/2/3/5/7/10'},
+    {id: 'long', title: '🐢 艾宾浩斯 · 长周期', sub: 'D1/3/7/21/60/120'},
+    {id: 'temp', title: '🚩 临时计划', sub: '仅当日，完成即结'}]);
+  if (!sched) return;
+  const scheduleType = sched.id;
+  const src = await pickDialog('计划来源', [
+    {id: 'manual', title: '✍️ 手动输入内容', sub: ''},
+    {id: 'note', title: '📝 关联笔记', sub: (ov.notes_count || 0) + ' 篇'},
+    {id: 'document', title: '📚 从书架选文档', sub: (ov.docs_count || 0) + ' 份'}]);
+  if (!src) return;
+  let title = '', content = '', sourceType = 'manual', sourceId = null;
+  if (src.id === 'note') {
+    const notes = await api('/notes');
+    const pick = await pickDialog('选择笔记', notes.map(n => ({id: n.id, title: n.title, sub: n.folder, icon: '📝'})));
+    if (!pick) return;
+    const note = await api('/notes/' + pick.id);
+    title = note.title; content = note.content; sourceType = 'note'; sourceId = note.id;
+  } else if (src.id === 'document') {
+    const docs = (await api('/shelf')).documents;
+    const pick = await pickDialog('选择文档', docs.map(d => ({id: d.id, title: d.title, sub: d.size_human, icon: d.icon})));
+    if (!pick) return;
+    const doc = await api('/docs/' + pick.id + '?with_text=1');
+    title = doc.title; content = (doc.summary_md || doc.text || '').slice(0, 9000); sourceType = 'document'; sourceId = doc.id;
+  } else {
+    title = await XueYu.promptDialog('新建计划', {label: '想学点什么？', placeholder: '如：考研英语 List 13'});
+    if (!title) return;
+  }
+  // 手动输入无素材 → 无可分析内容，跳过卡片生成
+  const flashcards = sourceType !== 'manual' && content.trim() &&
+    await XueYu.confirmDialog('生成复习卡片', '是否让 AI 依据素材生成复习卡片？（需要已配置模型）');
+  try {
+    const plan = await api('/plan', {method: 'POST', body: {title, content, source_type: sourceType, source_id: sourceId, daily_minutes: minutes, schedule_type: scheduleType}});
+    if (flashcards) {
+      toast('计划已创建', '正在生成复习卡片…');
+      api(`/plan/${plan.id}/flashcards`, {method: 'POST', body: {count: 12}}).then(() => toast('卡片已生成', '共 12 张', 'ok')).catch(e => toast('卡片生成失败', e.message, 'err'));
+    } else toast('计划已创建 🎉', sched.id === 'temp' ? '临时计划：仅当日生效，完成即结' : sched.title.replace(/^[^ ]+ /, '') + ' 已自动排期', 'ok');
+    await Promise.all([loadPlans(), loadUpcoming(), loadToday(), XueYu.SHELL.overview && bootShell()]);
+  } catch (e) { showError(e); }
+}
+window.newPlanDialog = newPlanDialog;
+
+/* ---------- 视图切换 ---------- */
+$('#view-seg').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  $$('#view-seg button').forEach(x => x.classList.toggle('on', x === b));
+  const v = b.dataset.view;
+  $('.view-day').style.display = v === 'day' ? '' : 'none';
+  $('.view-week').style.display = v === 'week' ? '' : 'none';
+  $('.view-month').style.display = v === 'month' ? '' : 'none';
+  if (v === 'week') loadWeek().catch(showError);
+  if (v === 'month') loadMonth().catch(showError);
+});
+// 周视图点某天 → 当日悬浮窗
+$('#week-grid').addEventListener('click', e => {
+  const cell = e.target.closest('.day'); if (!cell) return;
+  const idx = [...$('#week-grid').children].indexOf(cell);
+  const base = weekAnchor ? new Date(weekAnchor + 'T00:00:00') : new Date();
+  const monday = new Date(base); monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+  const target = new Date(monday); target.setDate(monday.getDate() + idx);
+  dayPeek(localISO(target));
+});
+// 月视图点某天 → 当日悬浮窗
+$('#month-grid').addEventListener('click', e => {
+  const cell = e.target.closest('.mc'); if (!cell || cell.classList.contains('out')) return;
+  const idx = [...$('#month-grid').children].indexOf(cell);
+  const first = new Date(mCursor.getFullYear(), mCursor.getMonth(), 1);
+  const dpad = (first.getDay() + 6) % 7;
+  const target = new Date(first);
+  target.setDate(1 - dpad + idx);
+  dayPeek(localISO(target));
+});
+
+/* 当日计划悬浮窗 */
+async function dayPeek(ds) {
+  const d = await api('/plan/day?date=' + ds);
+  const cn = fmtDateCn(ds);
+  let body;
+  if (d.is_past) {
+    const doneRows = d.completed.map(c => `
+      <div class="q-row"><div class="qt"><b>${esc(c.title)}</b><span>用时 ${fmtHM(c.duration_sec)}${c.accuracy != null ? ' · 正确率 ' + Math.round(c.accuracy * 100) + '%' : ''}</span></div>
+        <span class="dtag g">✓</span></div>`);
+    const undoneRows = (d.undone || []).map(u => `
+      <div class="q-row" style="opacity:.5"><div class="qt"><b>${esc(u.title)}</b><span>未完成 · 已顺延</span></div>
+        <span class="dtag" style="background:#eee7d6;color:#8a8069">✗</span></div>`);
+    body = (doneRows.length || undoneRows.length) ? doneRows.join('') + undoneRows.join('')
+      : '<div class="empty" style="padding:18px">这一天没有复习记录</div>';
+  } else {
+    body = d.queue.length ? d.queue.map(it => `
+      <div class="q-row"><div class="qt"><b>${esc(it.title)}</b><span>${esc(it.future_point || it.stage_label)} · 预计 ${it.daily_minutes} 分钟</span></div>
+        <span class="dtag ${d.is_future ? 'b' : it.done_today ? 'g' : 'o'}">${d.is_future ? esc(it.future_point || it.stage_label) : it.done_today ? '✓ 已完成' : '待复习'}</span></div>`).join('')
+      : `<div class="empty" style="padding:18px">${d.is_future ? '这一天没有安排 🌈' : '今天没有到期复习'}</div>`;
+  }
+  const ov = document.createElement('div');
+  ov.className = 'overlay show';
+  ov.innerHTML = `<div class="modal" style="width:min(460px,92vw)">
+    <div class="modal-head">🗓 ${esc(cn)}${d.is_today ? ' · 今天' : ''}<span class="x" data-x>✕</span></div>
+    <div class="modal-body" style="max-height:46vh">${body}</div>
+    <div class="modal-foot"><button class="btn sm ghost" data-x>关闭</button>
+      <button class="btn sm" data-go>在日视图中查看 →</button></div></div>`;
+  document.body.appendChild(ov);
+  $$('[data-x]', ov).forEach(b => b.onclick = () => ov.remove());
+  ov.onclick = e => { if (e.target === ov) ov.remove(); };
+  $('[data-go]', ov).onclick = () => {
+    ov.remove();
+    $$('#view-seg button').forEach(x => x.classList.toggle('on', x.dataset.view === 'day'));
+    $('.view-day').style.display = ''; $('.view-week').style.display = 'none'; $('.view-month').style.display = 'none';
+    loadDay(ds).catch(showError);
+  };
+}
+
+/* ---------- 启动 ---------- */
+Promise.all([loadToday(), loadWeek(), loadUpcoming(), loadPlans()]).catch(showError);
+// ⌘N 上下文
+window.addEventListener('keydown', e => {
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'n') { e.preventDefault(); newPlanDialog(); }
+});
+if (location.search.includes('new=1')) setTimeout(newPlanDialog, 400);
+// 计划页轮询刷新运行状态（WS 在复习模式页）
+setInterval(loadToday, 5000);
+</script>
+</body>
+</html>

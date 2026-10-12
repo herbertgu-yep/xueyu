@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>学屿 · 复习模式</title>
+<link rel="stylesheet" href="/mac.css">
+<link rel="stylesheet" href="/app.css">
+<style>
+  .review-wrap{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px;position:relative;min-height:0;overflow-y:auto;width:100%}
+  .rv-head{text-align:center;margin-bottom:18px}
+  .rv-head .dtag{margin-bottom:10px}
+  .rv-head h1{font-size:20px;font-weight:850;margin-top:8px}
+  .big-timer{font-size:52px;text-align:center;color:var(--blu);margin:6px 0 2px}
+  .rv-sub-info{text-align:center;font-size:12.5px;color:var(--dim);margin-bottom:22px}
+  .flashcard{width:min(560px,92%);background:var(--card);border:2.5px solid var(--ink);border-radius:var(--hw);box-shadow:6px 6px 0 rgba(61,55,44,.18);padding:30px 34px;text-align:center;position:relative;min-height:200px}
+  .flashcard .fc-tag{position:absolute;top:-12px;left:50%;transform:translateX(-50%) rotate(-1.5deg)}
+  .flashcard .word{font-size:26px;font-weight:850;margin:6px 0 2px;line-height:1.5}
+  .flashcard .divider{border-top:2px dashed #e0d6bd;margin:14px 0}
+  .fc-answer{font-size:14px;line-height:1.9;text-align:left}
+  .fc-answer b{color:var(--org)}
+  details summary{cursor:pointer;list-style:none;display:inline-block}
+  details summary::-webkit-details-marker{display:none}
+  details .show-btn{font-size:13px;font-weight:800;border-bottom:2px solid var(--ink);padding:2px 4px}
+  details[open] .show-btn{display:none}
+  .fc-material{max-height:300px;overflow-y:auto;text-align:left;font-size:13px}
+  .rv-controls{display:flex;gap:12px;margin-top:26px;flex-wrap:wrap;justify-content:center}
+  .app-header{transition:opacity .4s}
+  body.idle .app-header{opacity:0;pointer-events:none}
+  .pomodoro{margin-top:8px;font-size:12px;color:var(--dim);font-weight:800}
+  .pomodoro b{font-family:ui-monospace,Menlo,monospace;color:var(--org);font-size:14px}
+  .rv-progress{position:absolute;top:22px;left:28px;font-size:12px;font-weight:800;color:var(--dim);transition:opacity .4s}
+  body.idle .rv-progress{opacity:0}
+  .rv-exit{transition:opacity .4s}
+  body.idle .rv-exit{opacity:0}
+  .rv-exit{position:absolute;top:20px;right:28px}
+  .paused-mask{position:absolute;inset:0;background:rgba(250,244,230,.92);display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;z-index:5}
+  .paused-mask .emo{font-size:44px}
+  .paused-mask b{font-size:18px}
+  .paused-mask p{font-size:12.5px;color:var(--dim)}
+  body.paused .paused-mask{display:flex}
+  .finish-card{display:none;width:min(520px,92%);text-align:center}
+  body.finished .finish-card{display:block}
+  body.finished .flashcard,body.finished .rv-controls,body.finished .big-timer,body.finished .rv-sub-info,body.finished .rv-head .dtag{display:none}
+  .stat-row{display:flex;gap:12px;justify-content:center;margin:18px 0}
+  .stat-box{flex:1;background:#fff;border:2px solid var(--ink);border-radius:12px 5px 13px 6px;padding:14px 8px}
+  .stat-box b{display:block;font-size:22px}
+  .stat-box span{font-size:11px;color:var(--dim);font-weight:700}
+  .card-nav{margin-top:10px;font-size:11.5px;color:var(--dim);font-weight:700}
+</style>
+</head>
+<body data-page="review">
+<div class="app-shell">
+  <header class="app-header" id="app-header" data-title="🎯 复习模式">
+      <span class="app-title"><span class="ico">🏝️</span> 学屿</span>
+      <span class="sep-v"></span>
+      <span class="page-title">🎯 复习模式 <span class="sub">保持专注，系统正在计时</span></span>
+      <div class="tb-tools">
+        <button class="tb-btn" id="global-search" title="全局搜索 ⌘K">🔍</button>
+      <div id="page-tools"><button class="tb-btn" id="pauseBtn">⏸ 暂停 <kbd>space</kbd></button>
+      <button class="tb-btn" id="finishBtn">✓ 完成复习</button></div>
+      </div>
+    </header>
+  <div class="app">
+    <div class="review-wrap">
+      <div class="rv-progress" id="rv-progress">加载中…</div>
+      <a class="rv-exit btn sm ghost" href="/plan">✕ 退出复习模式</a>
+
+      <div class="rv-head">
+        <span class="dtag o" id="rv-tag">—</span>
+        <h1 id="rv-title">正在载入今日队列…</h1>
+      </div>
+      <div class="big-timer timer" id="itemTimer">00:00</div>
+      <div class="rv-sub-info">本项用时 · 完成后自动结算</div>
+      <div class="pomodoro">🍅 专注 <b id="pomoTimer">25:00</b> · 完成一轮自动提醒</div>
+
+      <div class="flashcard" id="flashcard"></div>
+
+      <div class="rv-controls" id="rv-controls"></div>
+      <div class="card-nav" id="card-nav"></div>
+
+      <div class="paused-mask">
+        <div class="emo">☕</div>
+        <b>已暂停</b>
+        <p>喝口水，休息一下。计时已冻结，不会计入复习时长。</p>
+        <button class="btn grn" id="resumeBtn">▶ 继续复习</button>
+      </div>
+
+      <div class="finish-card">
+        <div class="card" style="padding:30px 34px">
+          <div style="font-size:42px">🎉</div>
+          <h2 style="font-size:20px;margin:8px 0 4px" id="fin-title">复习完成</h2>
+          <p style="font-size:12.5px;color:var(--dim)" id="fin-sub"></p>
+          <div class="stat-row">
+            <div class="stat-box"><b class="timer" id="fin-time">--</b><span>本项用时</span></div>
+            <div class="stat-box"><b id="fin-known">--</b><span>认识</span></div>
+            <div class="stat-box"><b id="fin-acc">--</b><span>正确率</span></div>
+          </div>
+          <p style="font-size:12px;color:var(--dim);margin-bottom:16px" id="fin-next"></p>
+          <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+            <button class="btn sm" id="fin-next-btn">▶ 下一项</button>
+            <a class="btn sm ghost" href="/plan">返回计划</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/vendor/marked.min.js"></script>
+<script src="/vendor/purify.min.js"></script>
+<script src="/app.js"></script>
+<script>
+// 标识符（$ / api / toast / esc 等）由 app.js 全局提供
+let queue = [], idx = 0, ws = null;
+let cardIdx = 0, known = 0, unknown = 0, revealing = false;
+let lastSession = null;
+
+const cur = () => queue[idx];
+
+async function loadQueue() {
+  const data = await api('/plan/today?with_content=1');
+  const params = new URLSearchParams(location.search);
+  queue = data.queue.filter(it => !it.done_today);
+  const want = params.get('item');
+  if (want) { const i = queue.findIndex(x => x.id == want); if (i >= 0) idx = i; }
+  if (!queue.length) {
+    $('#rv-title').textContent = '今天没有待复习的项目 🎉';
+    $('#flashcard').innerHTML = '<div class="empty"><span class="big">🌈</span>全部完成，去首页看看统计吧</div>';
+    $('#rv-controls').innerHTML = '';
+    return;
+  }
+  try { cur()._full = await api('/plan/' + cur().id); cur()._full.elapsed_sec = cur().elapsed_sec; } catch {}
+  renderCurrent();
+  connectWS();
+  // 进入即开始计时（若尚未运行）
+  if (cur().run_state !== 'running') await startCurrent();
+}
+
+async function startCurrent() {
+  try { const it = await api(`/review/${cur().id}/start`, {method: 'POST', body: {}}); Object.assign(cur()._full || {}, it); }
+  catch (e) { showError(e); }
+}
+
+function connectWS() {
+  if (ws) ws.close();
+  ws = new WebSocket(`ws://${location.host}/ws/review/${cur().id}`);
+  ws.onmessage = ev => {
+    const m = JSON.parse(ev.data);
+    if (m.type !== 'tick') return;
+    $('#itemTimer').textContent = fmtSec(m.elapsed_sec);
+    const paused = m.run_state === 'paused';
+    document.body.classList.toggle('paused', paused);
+    $('#pauseBtn').innerHTML = paused ? '▶ 继续 <kbd>space</kbd>' : '⏸ 暂停 <kbd>space</kbd>';
+  };
+}
+
+function renderCurrent() {
+  const it = cur(); if (!it) return;
+  const full = it._full || it;
+  $('#rv-title').textContent = it.title;
+  $('#rv-tag').textContent = `${it.stage_label} · ${it.source_type === 'note' ? '笔记' : it.source_type === 'document' ? '文档' : it.source_type === 'report' ? '报告' : '自定义'}`;
+  $('#rv-progress').innerHTML = `第 ${idx + 1} / ${queue.length} 项 · 今日队列 ${it.done_today ? '已完成' : '进行中'}`;
+  known = 0; unknown = 0; cardIdx = 0; revealing = false;
+  const cards = full.flashcards || [];
+  if (cards.length) renderFlashcard(cards);
+  else renderMaterial(full);
+  renderProgressLine();
+}
+
+function renderProgressLine() {
+  const cards = cur().flashcards || (cur()._full || {}).flashcards || [];
+  $('#card-nav').textContent = cards.length ? `卡片 ${Math.min(cardIdx + 1, cards.length)} / ${cards.length} · 认识 ${known} · 生词 ${unknown}` : '';
+}
+
+function renderFlashcard(cards) {
+  const card = cards[Math.min(cardIdx, cards.length - 1)];
+  $('#flashcard').innerHTML = `
+    <span class="tape t-pnk fc-tag">复习卡</span>
+    <div class="word">${esc(card.front)}</div>
+    <details id="card-details"><summary><span class="show-btn">💭 想不起来？显示答案</span></summary>
+      <div class="divider"></div><div class="fc-answer md" id="card-back"></div></details>`;
+  mdRender($('#card-back'), card.back);
+  $('#flashcard').querySelector('details').addEventListener('toggle', ev => { revealing = ev.target.open; });
+  renderControls(cards);
+}
+
+function renderMaterial(full) {
+  $('#flashcard').innerHTML = `
+    <span class="tape t-blu fc-tag">复习素材</span>
+    <div class="fc-material md" id="material-md"></div>`;
+  mdRender($('#material-md'), full.content || '*（该计划暂无素材内容——可在新建计划时补充，或用下方按钮生成卡片）*');
+  renderControls([]);
+}
+
+function renderControls(cards) {
+  const box = $('#rv-controls');
+  if (cards.length) {
+    box.innerHTML = `
+      <button class="btn ghost sm" id="prev-card" ${cardIdx === 0 ? 'disabled' : ''}>← 上一张</button>
+      <button class="btn grn sm" id="know-btn">😎 认识</button>
+      <button class="btn ylw sm" id="dontknow-btn">😵 不认识</button>
+      <button class="btn blu sm" id="finish-early">✓ 提前结算</button>`;
+    $('#know-btn').onclick = () => answerCard(true, cards);
+    $('#dontknow-btn').onclick = () => answerCard(false, cards);
+    $('#prev-card').onclick = () => { if (cardIdx > 0) { cardIdx--; renderFlashcard(cards); } };
+    $('#finish-early').onclick = () => finish(true);
+  } else {
+    box.innerHTML = `
+      <button class="btn grn sm" id="finish-ok">✓ 完成复习（记为已掌握）</button>
+      <button class="btn ylw sm" id="finish-bad">😵 没记住，明天再来</button>
+      <button class="btn ghost sm" id="gen-cards">🪄 AI 生成卡片</button>`;
+    $('#finish-ok').onclick = () => finish(true);
+    $('#finish-bad').onclick = () => finish(false);
+    $('#gen-cards').onclick = genCards;
+  }
+}
+
+async function genCards() {
+  const btn = $('#gen-cards'); btn.disabled = true; btn.textContent = '🪄 生成中…';
+  try {
+    const it = await api(`/plan/${cur().id}/flashcards`, {method: 'POST', body: {count: 12}});
+    cur()._full = it;
+    toast('卡片已生成', `共 ${it.flashcard_count} 张，继续复习吧`, 'ok');
+    cardIdx = 0; known = 0; unknown = 0;
+    renderCurrent();
+  } catch (e) { showError(e); btn.disabled = false; btn.textContent = '🪄 AI 生成卡片'; }
+}
+
+function answerCard(good, cards) {
+  good ? known++ : unknown++;
+  cardIdx++;
+  if (cardIdx >= cards.length) { finish(true); return; }
+  renderFlashcard(cards);
+  renderProgressLine();
+}
+
+async function finish(positive) {
+  const it = cur();
+  const body = {known, unknown, accuracy: known + unknown ? known / (known + unknown) : (positive ? null : 0)};
+  if (!((it.flashcards || (it._full || {}).flashcards) || []).length && known + unknown === 0) {
+    body.known = positive ? 1 : 0; body.unknown = positive ? 0 : 1;
+    body.accuracy = positive ? null : 0;
+  }
+  try {
+    lastSession = await api(`/review/${it.id}/finish`, {method: 'POST', body});
+    document.body.classList.add('finished');
+    document.body.classList.remove('paused');
+    $('#fin-title').textContent = `${it.title} · 复习完成`;
+    $('#fin-sub').textContent = lastSession.last_session.graduated
+      ? '全部 6 个复习点完成，该计划毕业啦 🎓'
+      : `认识 ${known} · 生词 ${unknown}（低分项下次间隔会自动缩短）`;
+    $('#fin-time').textContent = fmtSec(lastSession.last_session.duration_sec);
+    $('#fin-known').textContent = known + unknown || '--';
+    $('#fin-acc').textContent = lastSession.last_session.accuracy != null ? Math.round(lastSession.last_session.accuracy * 100) + '%' : '--';
+    $('#fin-next').innerHTML = lastSession.last_session.graduated
+      ? '恭喜毕业！🎓'
+      : `下次复习点：<b>${esc(it.stage_label === '已毕业' ? '' : '')}${lastSession.last_session.next || '--'}</b>，已自动排入计划`;
+    $('#fin-next-btn').textContent = idx + 1 < queue.length ? `▶ 下一项：${queue[idx + 1].title.slice(0, 12)}` : '🎉 返回首页';
+  } catch (e) { showError(e); }
+}
+
+$('#fin-next-btn').onclick = () => {
+  if (idx + 1 < queue.length) {
+    idx++; document.body.classList.remove('finished');
+    renderCurrent();
+    if (cur().run_state !== 'running') startCurrent();
+    connectWS();
+  } else location.href = '/';
+};
+
+XueYu.onPageTools(() => {
+  $('#pauseBtn').onclick = togglePause;
+  $('#finishBtn').onclick = () => finish(true);
+});
+$('#resumeBtn').onclick = togglePause;
+async function togglePause() {
+  if (document.body.classList.contains('finished') || !cur()) return;
+  const running = cur()._full?.run_state === 'running' || cur().run_state === 'running';
+  try {
+    const it = await api(`/review/${cur().id}/${running ? 'pause' : 'start'}`, {method: 'POST', body: {}});
+    if (cur()._full) Object.assign(cur()._full, {run_state: it.run_state});
+  } catch (e) { showError(e); }
+}
+
+document.addEventListener('keydown', e => {
+  if (e.code === 'Space' && !document.body.classList.contains('finished')) {
+    e.preventDefault();
+    const details = $('#card-details');
+    if (details && !details.open) { details.open = true; return; }  // 空格先翻卡
+    togglePause();
+  }
+  if (e.key === '1' && $('#know-btn')) $('#know-btn').click();
+  if (e.key === '2' && $('#dontknow-btn')) $('#dontknow-btn').click();
+});
+
+/* 沉浸专注：鼠标/键盘空闲 2.5s 隐藏界面元素，一动就回来 */
+(() => {
+  let t;
+  const wake = () => {
+    document.body.classList.remove('idle');
+    clearTimeout(t);
+    t = setTimeout(() => { if (!document.body.classList.contains('finished')) document.body.classList.add('idle'); }, 2500);
+  };
+  ['mousemove', 'keydown', 'mousedown', 'touchstart'].forEach(ev => document.addEventListener(ev, wake));
+  wake();
+})();
+
+/* 番茄钟：25 分钟倒计时，归零弹提示并自动重置 */
+(() => {
+  let left = 25 * 60, paused = false;
+  const fmt = x => String(Math.floor(x / 60)).padStart(2, '0') + ':' + String(x % 60).padStart(2, '0');
+  setInterval(() => {
+    if (document.body.classList.contains('finished')) return;
+    paused = document.body.classList.contains('paused');
+    if (!paused) left--;
+    if (left <= 0) {
+      left = 25 * 60;
+      toast('🍅 番茄钟完成！', '休息 5 分钟再战，或点「完成复习」结算本项', 'ok');
+    }
+    const el = $('#pomoTimer');
+    if (el) el.textContent = fmt(left);
+  }, 1000);
+})();
+
+loadQueue().catch(showError);
+window.addEventListener('beforeunload', () => {
+  ws && ws.close();
+  // 退出复习模式自动暂停计时（sendBeacon 保证导航前发出）
+  if (cur() && cur().run_state === 'running' && !document.body.classList.contains('finished')) {
+    navigator.sendBeacon(`/api/review/${cur().id}/pause`);
+  }
+});
+</script>
+</body>
+</html>

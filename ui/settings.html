@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>学屿 · 设置</title>
+<link rel="stylesheet" href="/mac.css">
+<link rel="stylesheet" href="/app.css">
+<style>
+  .set-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start;max-width:1000px}
+  .set-card h3{font-size:14px;margin-bottom:4px}
+  .set-card .hint{font-size:11.5px;color:var(--dim);margin-bottom:14px;font-weight:600}
+  .field{margin-bottom:12px}
+  .field label{font-size:12px;font-weight:800;display:block;margin-bottom:4px}
+  .field .input{width:100%}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .pill-ok{color:var(--grn);font-weight:800}
+  .pill-bad{color:var(--org);font-weight:800}
+  @media(max-width:900px){.set-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body data-page="settings">
+<div class="app-shell">
+  <header class="app-header" id="app-header" data-title="⚙️ 设置">
+      <span class="app-title"><span class="ico">🏝️</span> 学屿</span>
+      <span class="sep-v"></span>
+      <span class="page-title">⚙️ 设置 <span class="sub">模型 / 索引 / 提醒 · Key 仅存本机</span></span>
+      <div class="tb-tools">
+        <button class="tb-btn" id="global-search" title="全局搜索 ⌘K">🔍</button>
+      </div>
+    </header>
+  <div class="app">
+    <aside class="sidebar" id="app-sidebar">
+        <div class="side-head" style="display:flex;align-items:center;padding:2px 6px 8px;border-bottom:2px dashed #e0d6bd;margin-bottom:6px">
+          <b style="font-size:12px;color:var(--dim);letter-spacing:1px">学屿</b>
+          <button class="tb-btn" id="side-collapse" title="收起侧边栏" style="margin-left:auto;width:26px;height:26px;min-width:26px">◧</button>
+        </div>
+        <div class="side-label">今天</div>
+        <a class="side-it" href="/" data-nav="index" title="今日清单"><span class="ico2">☀️</span><span class="txt">今日清单</span><span class="cnt" id="cnt-today"></span></a>
+        <a class="side-it" href="/plan" data-nav="plan" title="学习计划"><span class="ico2">📅</span><span class="txt">学习计划</span><span class="cnt" id="cnt-plans"></span></a>
+        <div class="side-label">学习资产</div>
+        <a class="side-it" href="/notes" data-nav="notes" title="笔记"><span class="ico2">📝</span><span class="txt">笔记</span><span class="cnt" id="cnt-notes"></span></a>
+        <a class="side-it" href="/shelf" data-nav="shelf" title="书架"><span class="ico2">📚</span><span class="txt">书架</span><span class="cnt" id="cnt-shelf"></span></a>
+        <a class="side-it" href="/research" data-nav="research" title="深度研究"><span class="ico2">🔬</span><span class="txt">深度研究</span><span class="cnt" id="cnt-research"></span></a>
+        <a class="side-it" href="/settings" data-nav="settings" style="margin-top:auto">⚙️ 设置</a>
+      </aside>
+    <main class="main" id="main">
+      <div class="set-grid">
+        <!-- AI 模型：多服务商 + 功能路由 -->
+        <div class="card set-card">
+          <h3>🤖 AI 服务商 <span id="model-state"></span></h3>
+          <div class="hint">可添加多个 AI 服务商，用「功能分配」决定每个功能使用哪个。</div>
+          <div id="provider-entries"></div>
+          <button class="btn sm ghost" id="add-provider">＋ 添加服务商</button>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">
+            <button class="btn sm" id="save-model">💾 保存全部</button>
+          </div>
+          <div id="test-result" style="font-size:12px;margin-top:10px;font-weight:700"></div>
+        </div>
+
+        <div class="card set-card">
+          <h3>🎯 功能分配</h3>
+          <div class="hint">每个功能可以指定用哪个服务商条目（改为「默认」则用列表里的第一个）。</div>
+          <div id="routing-list"></div>
+        </div>
+
+        <!-- 向量索引 -->
+        <div class="card set-card">
+          <h3>🧬 向量索引（RAG）</h3>
+          <div class="hint">书架文档向量化后可被检索与问答；更换配置后自动重建。</div>
+          <div class="field"><label>Embedding 来源</label>
+            <select class="input" id="emb-mode">
+              <option value="local">💻 本地模型（sentence-transformers）</option>
+              <option value="api">☁️ API 服务（OpenAI 兼容）</option>
+            </select></div>
+          <div id="emb-local">
+            <div class="field"><label>本地模型</label>
+              <select class="input" id="embedding-model"></select>
+              <input class="input" id="embedding-custom" placeholder="或填自定义 sentence-transformers 模型名" style="margin-top:6px"></div>
+          </div>
+          <div id="emb-api" style="display:none">
+            <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">
+              <span class="chip" id="emb-ollama" title="本机 Ollama 提供 embedding（需先 ollama pull nomic-embed-text）">🦙 用本机 Ollama</span>
+              <span class="chip" id="emb-zhipu" title="智谱 embedding-3">✳ 智谱 Embedding</span>
+              <span class="chip" id="emb-dashscope" title="通义 text-embedding-v3">☁ 通义 Embedding</span>
+            </div>
+            <div class="field"><label>API Base URL（留空用 OpenAI 官方）</label>
+              <input class="input" id="emb-api-url" placeholder="https://dashscope.aliyuncs.com/compatible-mode/v1"></div>
+            <div class="field"><label>API Key</label>
+              <input class="input" type="password" id="emb-api-key" placeholder="sk-…"></div>
+            <div class="field"><label>API 模型名</label>
+              <input class="input" id="emb-api-model" list="emb-api-models" placeholder="text-embedding-3-small / text-embedding-v3">
+              <datalist id="emb-api-models">
+                <option value="text-embedding-3-small"><option value="text-embedding-3-large">
+                <option value="text-embedding-v3"><option value="embedding-3">
+              </datalist></div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn sm" id="save-embedding">💾 保存</button>
+            <button class="btn sm ghost" id="test-embedding">🔌 测试</button>
+          </div>
+          <div id="emb-test-result" style="font-size:12px;margin-top:8px;font-weight:700"></div>
+          <div id="index-status" style="font-size:12px;color:var(--dim);font-weight:700;margin:8px 0 10px"></div>
+          <button class="btn sm blu" id="reindex-btn">↻ 重建全部索引</button>
+        </div>
+
+        <!-- 深度研究 Agent -->
+        <div class="card set-card">
+          <h3>🔬 深度研究 Agent</h3>
+          <div class="hint">发起研究时也可以在研究页临时切换。</div>
+          <div class="field"><label>默认范式</label>
+            <select class="input" id="rs-paradigm">
+              <option value="plan_execute">智能规划（拆解→检索→补检→验证）</option>
+              <option value="react">ReAct 循环（Function Calling 自主用工具）</option>
+              <option value="multi_agent">多智能体（并行研究员）</option>
+            </select></div>
+          <div class="field"><label>ReAct 最大步数 <span id="rs-steps-val" style="color:var(--dim)">14</span></label>
+            <input type="range" id="rs-steps" min="4" max="40" step="1" style="width:100%"></div>
+          <div class="field"><label>任务记忆（自动沉淀关键事实供报告使用）</label>
+            <select class="input" id="rs-memory"><option value="1">开启</option><option value="0">关闭</option></select></div>
+          <div class="field"><label>检索策略（书架 RAG）</label>
+            <select class="input" id="rs-multiquery"><option value="1">混合检索 + Multi-Query 改写（推荐）</option><option value="0">仅向量检索</option></select></div>
+          <div class="field"><label>LLM 重排（对候选按相关性精排，多耗一次调用）</label>
+            <select class="input" id="rs-rerank"><option value="0">关闭</option><option value="1">开启</option></select></div>
+          <div class="field"><label>语义缓存（相似问题直接复用回答）</label>
+            <select class="input" id="rs-semcache"><option value="1">开启</option><option value="0">关闭</option></select></div>
+          <button class="btn sm" id="save-research">💾 保存</button>
+        </div>
+
+        <!-- 研究技能 -->
+        <div class="card set-card">
+          <h3>🧩 研究技能</h3>
+          <div class="hint">可复用的研究要求，发起研究时勾选生效。</div>
+          <div id="skills-list" style="margin-bottom:10px"></div>
+          <button class="btn sm ghost" id="skill-add">＋ 新建技能</button>
+        </div>
+
+        <!-- MCP 服务器 -->
+        <div class="card set-card">
+          <h3>🔌 MCP 服务器</h3>
+          <div class="hint">接入外部 MCP 工具服务，ReAct 研究时自动可用，调用过程见活动日志。</div>
+          <div id="mcp-list" style="margin-bottom:10px"></div>
+          <button class="btn sm ghost" id="mcp-add">＋ 添加服务器</button>
+        </div>
+
+        <!-- 复习提醒 -->
+        <div class="card set-card">
+          <h3>🔔 复习提醒</h3>
+          <div class="hint">每天定时提醒今日待复习。</div>
+          <div class="row2">
+            <div class="field"><label>启用</label>
+              <select class="input" id="reminder-enabled"><option value="0">关闭</option><option value="1">开启</option></select></div>
+            <div class="field"><label>提醒时间</label><input class="input" type="time" id="reminder-time" value="09:00"></div>
+          </div>
+          <button class="btn sm" id="save-reminder">💾 保存</button>
+        </div>
+
+        <!-- 关于 -->
+        <div class="card set-card">
+          <h3>🏝️ 关于学屿</h3>
+          <div class="hint">本地优先的 AI 学习助手 · 数据全部存在本机，可整目录备份。</div>
+          <div style="font-size:12.5px;line-height:2" id="about-info"></div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script src="/vendor/marked.min.js"></script>
+<script src="/vendor/purify.min.js"></script>
+<script src="/app.js"></script>
+<script>
+// 标识符（$ / api / toast / esc 等）由 app.js 全局提供
+let providers = [];
+
+let catalog = [];        // 供应商目录
+let entries = [];        // 已配置条目（内存编辑态）
+let routing = {};
+
+async function load() {
+  const s = await api('/settings');
+  catalog = s.providers_catalog;
+  entries = s.provider_entries.map(e => ({...e}));
+  routing = s.routing || {};
+  $('#model-state').innerHTML = s.model_configured
+    ? '<span class="pill-ok">● 已配置</span>' : '<span class="pill-bad">● 未配置</span>';
+
+  $('#embedding-model').innerHTML = s.embedding_presets.map(p =>
+    `<option value="${p.id}">${esc(p.label)}</option>`).join('') + '<option value="__custom">自定义…</option>';
+  const emb = s.embedding;
+  if (s.embedding_local_available === false) {
+    // 打包版不含本地模型栈：彻底隐藏本地选项
+    const opt = $('#emb-mode option[value="local"]');
+    if (opt) opt.remove();
+    $('#emb-mode').value = 'api';
+  } else {
+    $('#emb-mode').value = emb.mode || 'local';
+  }
+  $('#emb-api-url').value = emb.api_base_url || '';
+  $('#emb-api-key').value = emb.api_key || '';
+  $('#emb-api-model').value = emb.api_model || 'text-embedding-3-small';
+  toggleEmbMode();
+  if ([...$('#embedding-model').options].some(o => o.value === emb.model)) $('#embedding-model').value = emb.model;
+  else { $('#embedding-model').value = '__custom'; $('#embedding-custom').value = emb.model; }
+
+  $('#reminder-enabled').value = s.reminder.enabled ? '1' : '0';
+  $('#reminder-time').value = s.reminder.time || '09:00';
+
+  const idx = await api('/shelf/index/status');
+  $('#index-status').textContent = `${idx.indexed_documents}/${idx.documents} 文档已向量化 · ${idx.chunks} 分块 · 模型 ${idx.embedding_model}`;
+
+  const ov = await api('/overview');
+  $('#about-info').innerHTML = `
+    <div>版本 <b>${esc(ov.app.version)}</b> · macOS 客户端</div>
+    <div>本地优先：所有数据保存在这台电脑上，无账号、无云端</div>`;
+  renderEntries();
+  renderRouting();
+}
+
+function providerOptions(sel) {
+  return catalog.map(p => `<option value="${p.id}" ${p.id === sel ? 'selected' : ''}>${esc(p.label)}</option>`).join('');
+}
+function modelDatalist(pid, eid) {
+  const p = catalog.find(x => x.id === pid);
+  return `<datalist id="ml-${eid}">${(p?.models || []).map(m => `<option value="${m}">`).join('')}</datalist>`;
+}
+
+function renderEntries() {
+  $('#provider-entries').innerHTML = entries.map((e, i) => `
+    <div class="provider-entry" data-i="${i}" style="border:2px dashed #ddd2b8;border-radius:12px 6px 13px 7px;padding:12px 14px;margin-bottom:10px">
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+        <b style="font-size:12.5px">条目 ${i + 1}</b>
+        <span class="dtag b" style="margin-left:auto">${esc((catalog.find(x => x.id === e.provider) || {}).label || e.provider)}</span>
+        <button class="tb-btn" data-del="${i}" title="删除此条目" style="width:26px;height:26px;min-width:26px">🗑</button>
+      </div>
+      <div class="row2">
+        <div class="field"><label>供应商</label>
+          <select class="input" data-f="provider">${providerOptions(e.provider)}</select></div>
+        <div class="field"><label>模型名称</label>
+          <input class="input" data-f="model" list="ml-${e.id || i}" value="${esc(e.model || '')}" placeholder="如 gpt-4o-mini / deepseek-chat">${modelDatalist(e.provider, e.id || i)}</div>
+      </div>
+      <div class="field"><label>API Key（Ollama 可留空）</label>
+        <input class="input" type="password" data-f="api_key" value="${esc(e.api_key || '')}" placeholder="sk-…"></div>
+      <div class="field"><label>Base URL（可选）</label>
+        <input class="input" data-f="base_url" value="${esc(e.base_url || '')}" placeholder="留空使用供应商默认"></div>
+      <button class="btn sm ghost" data-test="${i}">🔌 测试此条目</button>
+    </div>`).join('') || '<div class="empty" style="padding:14px">还没有服务商条目，点下方按钮添加</div>';
+
+  $$('#provider-entries select[data-f="provider"]').forEach(sel => sel.onchange = () => {
+    const i = +sel.closest('.provider-entry').dataset.i;
+    entries[i].provider = sel.value;
+    const p = catalog.find(x => x.id === sel.value);
+    if (p?.models?.length && !entries[i].model) entries[i].model = p.models[0];
+    renderEntries();
+  });
+  $$('#provider-entries [data-f="model"]').forEach(inp => inp.oninput = () => entries[+inp.closest('.provider-entry').dataset.i].model = inp.value);
+  $$('#provider-entries [data-f="api_key"]').forEach(inp => inp.oninput = () => entries[+inp.closest('.provider-entry').dataset.i].api_key = inp.value);
+  $$('#provider-entries [data-f="base_url"]').forEach(inp => inp.oninput = () => entries[+inp.closest('.provider-entry').dataset.i].base_url = inp.value);
+  $$('#provider-entries [data-del]').forEach(btn => btn.onclick = () => { entries.splice(+btn.dataset.del, 1); renderEntries(); renderRouting(); });
+  $$('#provider-entries [data-test]').forEach(btn => btn.onclick = () => testEntry(+btn.dataset.test, btn));
+}
+
+function renderRouting() {
+  const fns = {'note': '📝 笔记 AI 助手', 'doc': '📄 文档分析', 'research': '🔬 深度研究'};
+  $('#routing-list').innerHTML = Object.entries(fns).map(([k, label]) => `
+    <div class="field"><label>${label}</label>
+      <select class="input" data-fn="${k}">
+        <option value="">默认（第一个条目）</option>
+        ${entries.map(e => `<option value="${e.id}" ${routing[k] === e.id ? 'selected' : ''}>${esc(e.label || (e.provider + ' · ' + e.model))}</option>`).join('')}
+      </select></div>`).join('');
+  $$('#routing-list select').forEach(sel => sel.onchange = () => { routing[sel.dataset.fn] = sel.value; });
+}
+
+$('#add-provider').onclick = () => {
+  entries.push({provider: 'openai', api_key: '', base_url: '', model: catalog[0]?.models?.[0] || '', temperature: 0.4});
+  renderEntries(); renderRouting();
+};
+
+$('#save-model').onclick = async () => {
+  try {
+    await api('/settings/providers', {method: 'PUT', body: {providers: entries.filter(e => (e.model || '').trim())}});
+    await api('/settings/routing', {method: 'PUT', body: {routing}});
+    const s = await api('/settings');
+    entries = s.provider_entries.map(e => ({...e}));
+    $('#model-state').innerHTML = s.model_configured ? '<span class="pill-ok">● 已配置</span>' : '<span class="pill-bad">● 未配置</span>';
+    renderEntries(); renderRouting();
+    toast('服务商与功能分配已保存 💾', '', 'ok');
+    bootShell();
+  } catch (e) { showError(e); }
+};
+
+async function testEntry(i, btn) {
+  const e = entries[i];
+  const orig = btn.textContent;
+  btn.disabled = true; btn.textContent = '⏳ 连接中…';
+  try {
+    const res = await api('/settings/test', {method: 'POST', body: {
+      prompt: '只回答一个词：你好',
+      config: {provider: e.provider, api_key: e.api_key, base_url: e.base_url, model: e.model},
+    }});
+    $('#test-result').innerHTML = `<span class="pill-ok">✓ 条目 ${i + 1} 连接成功</span> —— 回复：「${esc(res.reply)}」`;
+  } catch (err) {
+    $('#test-result').innerHTML = `<span class="pill-bad">✗ 条目 ${i + 1}：${esc(err.message)}</span>`;
+  }
+  btn.disabled = false; btn.textContent = orig;
+}
+
+$('#embedding-model').onchange = () => $('#embedding-custom').style.display =
+  $('#embedding-model').value === '__custom' ? '' : 'none';
+const EMB_PRESETS = {
+  'emb-ollama': {api_base_url: 'http://localhost:11434/v1', api_model: 'nomic-embed-text', fill_key: false},
+  'emb-zhipu': {api_base_url: 'https://open.bigmodel.cn/api/paas/v4', api_model: 'embedding-3'},
+  'emb-dashscope': {api_base_url: 'https://dashscope.aliyuncs.com/compatible-mode/v1', api_model: 'text-embedding-v3'},
+};
+Object.entries(EMB_PRESETS).forEach(([id, p]) => {
+  const el = document.getElementById(id);
+  if (el) el.onclick = () => {
+    $('#emb-mode').value = 'api';
+    toggleEmbMode();
+    $('#emb-api-url').value = p.api_base_url;
+    $('#emb-api-model').value = p.api_model;
+    if (p.fill_key === false) $('#emb-api-key').value = $('#emb-api-key').value || 'ollama';
+  };
+});
+function toggleEmbMode() {
+  const isApi = $('#emb-mode').value === 'api';
+  $('#emb-local').style.display = isApi ? 'none' : '';
+  $('#emb-api').style.display = isApi ? '' : 'none';
+  const unavailable = $('#emb-mode option[value="local"]')?.disabled;
+  if (unavailable) $('#emb-mode').value = 'api';  // 打包版强制 API
+}
+$('#emb-mode').onchange = toggleEmbMode;
+function currentEmbPayload() {
+  const localModel = $('#embedding-model').value === '__custom' ? $('#embedding-custom').value.trim() : $('#embedding-model').value;
+  return {
+    mode: $('#emb-mode').value,
+    model: localModel || 'BAAI/bge-small-zh-v1.5',
+    api_base_url: $('#emb-api-url').value.trim(),
+    api_key: $('#emb-api-key').value.trim(),
+    api_model: $('#emb-api-model').value.trim(),
+  };
+}
+$('#save-embedding').onclick = async () => {
+  try {
+    const r = await api('/settings/embedding', {method: 'PUT', body: currentEmbPayload()});
+    toast('Embedding 已保存', r.reindexed ? '向量空间变化，已自动开始全量重建' : '', 'ok');
+    loadResearch();
+  } catch (e) { showError(e); }
+};
+$('#test-embedding').onclick = async () => {
+  const r = $('#emb-test-result');
+  r.innerHTML = '⏳ 测试中…';
+  try {
+    const res = await api('/settings/embedding/test', {method: 'POST', body: currentEmbPayload()});
+    r.innerHTML = `<span class="pill-ok">✓ 成功</span> —— 维度 ${res.dim} · 耗时 ${res.ms}ms`;
+  } catch (e) { r.innerHTML = `<span class="pill-bad">✗ ${esc(e.message)}</span>`; }
+};
+
+$$('button').forEach(b => b.id !== 'reindex-btn' || b.onclick);
+$('#reindex-btn').onclick = async () => {
+  try {
+    const emb = $('#embedding-model').value === '__custom' ? $('#embedding-custom').value.trim() : $('#embedding-model').value;
+    const cur = (await api('/settings')).embedding.model;
+    if (emb && emb !== cur) {
+      const r = await api('/settings/embedding', {method: 'PUT', body: {model: emb}});
+      toast('embedding 已更换', r.reindexed ? '已自动开始全量重建' : '', 'ok');
+    } else {
+      await api('/shelf/reindex', {method: 'POST', body: {}});
+      toast('索引重建已开始', '到「书架」页可看进度', 'ok');
+    }
+  } catch (e) { showError(e); }
+};
+
+$('#save-reminder').onclick = async () => {
+  try {
+    await api('/settings/reminder', {method: 'PUT', body: {
+      enabled: $('#reminder-enabled').value === '1',
+      time: $('#reminder-time').value || '09:00',
+    }});
+    toast('提醒设置已保存 🔔', '', 'ok');
+  } catch (e) { showError(e); }
+};
+
+/* ---------- 深度研究设置 / 技能 / MCP ---------- */
+async function loadResearch() {
+  const rs = await api('/settings/research');
+  $('#rs-paradigm').value = rs.paradigm || 'plan_execute';
+  $('#rs-steps').value = rs.react_max_steps || 14;
+  $('#rs-steps-val').textContent = $('#rs-steps').value;
+  $('#rs-memory').value = rs.auto_memory ? '1' : '0';
+  $('#rs-multiquery').value = rs.hybrid_multi_query === false ? '0' : '1';
+  $('#rs-rerank').value = rs.hybrid_rerank ? '1' : '0';
+  $('#rs-semcache').value = rs.semantic_cache === false ? '0' : '1';
+  renderSkills();
+  renderMcp();
+}
+$('#rs-steps').oninput = e => $('#rs-steps-val').textContent = e.target.value;
+$('#save-research').onclick = async () => {
+  try {
+    await api('/settings/research', {method: 'PUT', body: {
+      paradigm: $('#rs-paradigm').value,
+      react_max_steps: +$('#rs-steps').value,
+      auto_memory: $('#rs-memory').value === '1',
+      mcp_enabled: true,
+      hybrid_multi_query: $('#rs-multiquery').value === '1',
+      hybrid_rerank: $('#rs-rerank').value === '1',
+      semantic_cache: $('#rs-semcache').value === '1',
+    }});
+    toast('研究设置已保存 🔬', '', 'ok');
+  } catch (e) { showError(e); }
+};
+
+async function renderSkills() {
+  const skills = await api('/research/skills').catch(() => []);
+  $('#skills-list').innerHTML = skills.length ? skills.map(k => `
+    <div class="pick-it" style="cursor:default"><span>🧩</span><span style="flex:1">${esc(k.name)}</span>
+      <button class="tb-btn" data-sedit="${esc(k.id)}" style="width:26px;height:26px;min-width:26px">✏️</button>
+      <button class="tb-btn" data-sdel="${esc(k.id)}" style="width:26px;height:26px;min-width:26px">🗑</button></div>`).join('')
+    : '<div class="empty" style="padding:10px">还没有技能</div>';
+  $$('[data-sedit]').forEach(b => b.onclick = async () => {
+    const cur = await api(`/research/skills/${encodeURIComponent(b.dataset.sedit)}`).catch(() => ({content: ''}));
+    const content = await XueYu.promptDialog(`编辑技能：${b.dataset.sedit}`, {multiline: true, value: cur.content || ''});
+    if (content == null) return;
+    await api(`/research/skills/${encodeURIComponent(b.dataset.sedit)}`, {method: 'PUT', body: {name: b.dataset.sedit, content}});
+    toast('技能已更新', '', 'ok'); renderSkills();
+  });
+  $$('[data-sdel]').forEach(b => b.onclick = async () => {
+    if (!(await XueYu.confirmDialog('删除技能', `删除「${b.dataset.sdel}」？`))) return;
+    await api(`/research/skills/${encodeURIComponent(b.dataset.sdel)}`, {method: 'DELETE'});
+    renderSkills();
+  });
+}
+$('#skill-add').onclick = async () => {
+  const name = await XueYu.promptDialog('新建技能', {label: '技能名称（如：学术严谨模式）'});
+  if (!name) return;
+  const content = await XueYu.promptDialog('技能内容', {label: '研究要求（Markdown）', multiline: true, placeholder: '要求：所有结论标注置信度…'});
+  if (content == null) return;
+  try {
+    await api('/research/skills', {method: 'POST', body: {name, content}});
+    toast('技能已创建 🧩', name, 'ok'); renderSkills();
+  } catch (e) { showError(e); }
+};
+
+async function renderMcp() {
+  const servers = await api('/settings/mcp').catch(() => []);
+  $('#mcp-list').innerHTML = servers.length ? servers.map(m => `
+    <div class="pick-it" style="cursor:default"><span>${m.enabled ? '🟢' : '⚪'}</span>
+      <span style="flex:1"><b>${esc(m.name)}</b><br><small style="color:var(--dim)">${esc(m.command)} ${esc((m.args || []).join(' '))}</small></span>
+      <button class="tb-btn" data-mtest="${esc(m.id)}" title="测试连接" style="width:26px;height:26px;min-width:26px">🔌</button>
+      <button class="tb-btn" data-mtoggle="${esc(m.id)}" title="启用/停用" style="width:26px;height:26px;min-width:26px">⏯</button>
+      <button class="tb-btn" data-mdel="${esc(m.id)}" style="width:26px;height:26px;min-width:26px">🗑</button></div>`).join('')
+    : '<div class="empty" style="padding:10px">还没有配置 MCP 服务器</div>';
+  $$('[data-sedit], [data-sdel]').forEach(() => {});
+  $$('[data-mtest]').forEach(b => b.onclick = async () => {
+    const m = servers.find(x => x.id === b.dataset.mtest);
+    toast('连接中…', m.command, '', null, 4000);
+    try {
+      const r = await api('/settings/mcp/test', {method: 'POST', body: {command: m.command, args: m.args || [], env: m.env || {}}});
+      toast('MCP 连接成功 ✓', `工具：${r.tools.join('、') || '（无）'}`, 'ok', null, 8000);
+    } catch (e) { showError(e); }
+  });
+  $$('[data-mtoggle]').forEach(b => b.onclick = async () => {
+    const m = servers.find(x => x.id === b.dataset.mtoggle);
+    await api(`/settings/mcp/${m.id}`, {method: 'PUT', body: {...m, enabled: !m.enabled}});
+    renderMcp();
+  });
+  $$('[data-mdel]').forEach(b => b.onclick = async () => {
+    if (!(await XueYu.confirmDialog('删除 MCP 服务器', '确定删除该配置？'))) return;
+    await api(`/settings/mcp/${b.dataset.mdel}`, {method: 'DELETE'});
+    renderMcp();
+  });
+}
+const MCP_PRESETS = {
+  'filesystem': {name: 'filesystem', command: 'npx', args: '-y @modelcontextprotocol/server-filesystem ~/Documents',
+                 desc: '官方文件系统：读写/搜索本地文件'},
+  'fetch':      {name: 'fetch', command: 'uvx', args: 'mcp-server-fetch',
+                 desc: '官方网页抓取：把网页转为 Markdown'},
+  'memory':     {name: 'memory', command: 'npx', args: '-y @modelcontextprotocol/server-memory',
+                 desc: '官方知识图谱记忆：跨会话长期记忆'},
+};
+$('#mcp-add').onclick = async () => {
+  const presets = Object.entries(MCP_PRESETS).map(([k, p]) =>
+    `<div class="pick-it" data-preset="${k}"><span>🧩</span>
+       <span style="flex:1"><b>${esc(p.name)}</b><br><small style="color:var(--dim)">${esc(p.desc)}</small></span></div>`).join('');
+  const ov = document.createElement('div');
+  ov.className = 'overlay show';
+  ov.innerHTML = `<div class="modal" style="width:min(560px,94vw)">
+    <div class="modal-head">🔌 添加 MCP 服务器（stdio 命令行）<span class="x" data-x>✕</span></div>
+    <div class="modal-body">
+      <div class="hint" style="margin-bottom:10px">选择一个官方示例自动填充，或直接填写启动命令：</div>
+      <div style="margin-bottom:12px">${presets}</div>
+      <div class="field"><label>名称</label><input class="input" id="mcp-name" placeholder="filesystem"></div>
+      <div class="field"><label>启动命令</label><input class="input" id="mcp-command" placeholder="npx"></div>
+      <div class="field"><label>参数（空格分隔）</label><input class="input" id="mcp-args" placeholder="-y @modelcontextprotocol/server-filesystem ~/Documents"></div>
+      <div class="field"><label>环境变量 JSON（可选）</label><input class="input" id="mcp-env" placeholder='{}'></div>
+      <div style="font-size:11px;color:var(--dim);font-weight:700">保存前会自动做一次真实连接测试（握手 + 工具发现）。</div>
+    </div>
+    <div class="modal-foot"><span style="margin-right:auto;font-size:11px;color:var(--dim);font-weight:700" id="mcp-add-status"></span>
+      <button class="btn sm ghost" data-x>取消</button><button class="btn sm" data-ok>测试并保存</button></div></div>`;
+  document.body.appendChild(ov);
+  $$('[data-x]', ov).forEach(b => b.onclick = () => ov.remove());
+  ov.onclick = e => { if (e.target === ov) ov.remove(); };
+  $$('[data-preset]', ov).forEach(el => el.onclick = () => {
+    const p = MCP_PRESETS[el.dataset.preset];
+    $('#mcp-name', ov).value = p.name;
+    $('#mcp-command', ov).value = p.command;
+    $('#mcp-args', ov).value = p.args;
+  });
+  $('[data-ok]', ov).onclick = async () => {
+    const item = {
+      name: $('#mcp-name', ov).value.trim(),
+      command: $('#mcp-command', ov).value.trim(),
+      args: $('#mcp-args', ov).value.trim() ? $('#mcp-args', ov).value.trim().split(/\s+/) : [],
+      env: (() => { try { return JSON.parse($('#mcp-env', ov).value || '{}'); } catch { return {}; } })(),
+      enabled: true,
+    };
+    if (!item.name || !item.command) return toast('名称和命令必填', '', 'err');
+    const st = $('#mcp-add-status', ov);
+    st.textContent = '⏳ 正在连接测试（首次 npx 会下载包，可能较慢）…';
+    try {
+      const r = await api('/settings/mcp/test', {method: 'POST', body: {command: item.command, args: item.args, env: item.env}});
+      st.textContent = '';
+      await api('/settings/mcp', {method: 'POST', body: item});
+      ov.remove();
+      toast('MCP 已接入 ✓', `${item.name}：${r.tools.length} 个工具可用`, 'ok', null, 8000);
+      renderMcp();
+    } catch (e) { st.textContent = ''; showError(e); }
+  };
+};
+
+load().catch(showError);
+loadResearch().catch(showError);
+</script>
+</body>
+</html>
