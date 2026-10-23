@@ -209,6 +209,23 @@ def reset_client() -> None:
 
 # ---------------------------------------------------------------- 索引构建
 
+CHUNK_SIZE = 480
+CHUNK_OVERLAP = 60
+
+
+def split_chunks(text: str) -> list[str]:
+    """统一的切块口径，向量索引与 BM25 都走这里，保证两路能对齐到同一个 chunk。"""
+    from llama_index.core import Document as LlamaDocument
+    from llama_index.core.node_parser import SentenceSplitter
+
+    text = (text or "").strip()
+    if not text:
+        return []
+    splitter = SentenceSplitter(chunk_size=CHUNK_SIZE, chunk_overlap=CHUNK_OVERLAP)
+    nodes = splitter.get_nodes_from_documents([LlamaDocument(text=text)], show_progress=False)
+    return [n.get_content().strip() for n in nodes if n.get_content().strip()]
+
+
 def index_document(doc_id: int) -> dict:
     """把单个文档的解析文本切块并向量化入库。"""
     from llama_index.core import Document as LlamaDocument
@@ -234,12 +251,14 @@ def index_document(doc_id: int) -> dict:
         except Exception:
             pass
 
-        splitter = SentenceSplitter(chunk_size=480, chunk_overlap=60)
+        splitter = SentenceSplitter(chunk_size=CHUNK_SIZE, chunk_overlap=CHUNK_OVERLAP)
         nodes = splitter.get_nodes_from_documents(
             [LlamaDocument(id_=str(doc.id), text=doc.text_content,
                            metadata={"doc_id": str(doc.id), "title": doc.title})],
             show_progress=False,
         )
+        for i, node in enumerate(nodes):
+            node.metadata = {**(node.metadata or {}), "chunk_id": f"{doc.id}:{i}"}
         _get_index().insert_nodes(nodes, show_progress=False)
 
         doc.indexed = True
@@ -330,20 +349,22 @@ def _bm25_for_docs(doc_ids: Optional[list[int]] = None) -> tuple[Any, list[dict]
             docs = s.exec(select(Document).where(Document.id.in_(doc_ids))).all()
         else:
             docs = s.exec(select(Document)).all()
+        # 先用轻量签名判断缓存，避免每次查询都重新切块（切块是 CPU 密集操作）
+        sig = (tuple(sorted(doc_ids)) if doc_ids else "all",
+               sum(len(d.text_content or "") for d in docs), len(docs))
+        with _state_lock:
+            if _bm25_cache["corpus_sig"] == sig:
+                return _bm25_cache["bm25"], _bm25_cache["chunks"]
+
         chunks = []
         for d in docs:
             if not d.text_content:
                 continue
-            size = 1200
-            text = d.text_content
-            for i in range(0, len(text), size):
-                piece = text[i:i + size]
-                if piece.strip():
-                    chunks.append({"doc_id": d.id, "title": d.title, "text": piece})
-    sig = (tuple(sorted(doc_ids)) if doc_ids else "all", sum(len(c["text"]) for c in chunks))
+            # 与向量索引共用 split_chunks，融合键才能对上
+            for i, piece in enumerate(split_chunks(d.text_content)):
+                chunks.append({"chunk_id": f"{d.id}:{i}", "doc_id": d.id,
+                               "title": d.title, "text": piece})
     with _state_lock:
-        if _bm25_cache["corpus_sig"] == sig:
-            return _bm25_cache["bm25"], _bm25_cache["chunks"]
         from rank_bm25 import BM25Okapi
 
         bm25 = BM25Okapi([_tokenize_zh(c["text"][:3000]) for c in chunks]) if chunks else None
@@ -355,12 +376,12 @@ def _rrf_fuse(vector_hits: list[dict], bm25_hits: list[dict], k: int = 60) -> li
     """Reciprocal Rank Fusion：融合两路检索排名（标准常数 k=60）。"""
     scores: dict[str, dict] = {}
     for rank, h in enumerate(vector_hits):
-        key = f"{h['doc_id']}:{h['text'][:80]}"
+        key = h.get("chunk_id") or f"{h['doc_id']}:{h['text'][:80]}"
         scores.setdefault(key, {**h, "rrf": 0.0, "sources": []})
         scores[key]["rrf"] += 1 / (k + rank + 1)
         scores[key]["sources"].append("vec")
     for rank, h in enumerate(bm25_hits):
-        key = f"{h['doc_id']}:{h['text'][:80]}"
+        key = h.get("chunk_id") or f"{h['doc_id']}:{h['text'][:80]}"
         entry = scores.get(key)
         if entry is None:
             entry = {**h, "score": None, "rrf": 0.0, "sources": []}
@@ -400,14 +421,22 @@ async def query_shelf_hybrid(query: str, *, doc_ids: Optional[list[int]] = None,
     vector_hits: dict[str, dict] = {}
     bm25_hits: dict[str, dict] = {}
     vector_down = None
-    for q in queries:
-        try:
-            vec = query_shelf(q, doc_ids=doc_ids, k=k)
-        except RuntimeError as e:  # embedding 不可用（打包版未配 API）→ 降级 BM25 关键词检索
-            vector_down = str(e)[:120]
+    # 多个检索式并行召回：query_shelf 是同步阻塞调用，放进线程池
+    import asyncio as _asyncio
+
+    vec_lists = await _asyncio.gather(
+        *[_asyncio.to_thread(query_shelf, q, doc_ids=doc_ids, k=k) for q in queries],
+        return_exceptions=True)
+    for q, vec_or_err in zip(queries, vec_lists):
+        if isinstance(vec_or_err, RuntimeError):  # embedding 不可用 → 降级 BM25
+            vector_down = str(vec_or_err)[:120]
             vec = []
+        elif isinstance(vec_or_err, BaseException):
+            vec = []
+        else:
+            vec = vec_or_err
         for h in vec:
-            key = f"{h['doc_id']}:{h['text'][:80]}"
+            key = h.get("chunk_id") or f"{h['doc_id']}:{h['text'][:80]}"
             if key not in vector_hits or (h.get("score") or 0) > (vector_hits[key].get("score") or 0):
                 vector_hits[key] = h
         try:
@@ -417,7 +446,7 @@ async def query_shelf_hybrid(query: str, *, doc_ids: Optional[list[int]] = None,
                 ranked = sorted(zip(corpus, scores), key=lambda x: -x[1])[:k]
                 for c, sc in ranked:
                     if sc > 0:
-                        key = f"{c['doc_id']}:{c['text'][:80]}"
+                        key = c.get("chunk_id") or f"{c['doc_id']}:{c['text'][:80]}"
                         if key not in bm25_hits:
                             bm25_hits[key] = {**c, "score": round(float(sc), 3)}
         except Exception:
@@ -484,6 +513,7 @@ def query_shelf(query: str, *, doc_ids: Optional[list[int]] = None, k: int = 5) 
         meta = n.metadata or {}
         score = getattr(n, "score", None)
         out.append({
+            "chunk_id": meta.get("chunk_id"),
             "doc_id": meta.get("doc_id"),
             "title": meta.get("title", ""),
             "text": n.get_content().strip(),
