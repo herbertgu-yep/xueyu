@@ -67,7 +67,10 @@ class McpStdioClient:
     async def start(self) -> None:
         import os
 
-        env = {**os.environ, **self.env}
+        # 只传最小必要的环境变量，不把整个父进程环境（含各类密钥）递给子进程
+        keep = ("PATH", "HOME", "LANG", "LC_ALL", "TMPDIR", "SYSTEMROOT", "USERPROFILE")
+        env = {k: os.environ[k] for k in keep if k in os.environ}
+        env.update(self.env)
         self.proc = await asyncio.create_subprocess_exec(
             self.command, *self.args,
             stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE,
