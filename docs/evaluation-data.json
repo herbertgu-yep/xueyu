@@ -2,16 +2,16 @@
   {
     "mode": "vector_only",
     "hit_rate": 0.286,
-    "term_hit_rate": 0.4,
-    "colloquial_hit_rate": 0.182,
-    "p50_ms": 8.8,
+    "term_hit_rate": 0.3,
+    "colloquial_hit_rate": 0.273,
+    "p50_ms": 10.0,
     "rows": [
       {
         "q": "Transformer 的编码器和解码器是怎么配合工作的？",
         "type": "term",
         "expected": "attention-is-all-you-need",
         "hit": false,
-        "top1": "vit"
+        "top1": "emergent-abilities"
       },
       {
         "q": "机器翻译模型怎么同时记住句子的前后文？",
@@ -24,8 +24,8 @@
         "q": "BERT 预训练时的掩码策略具体是怎么做的？",
         "type": "term",
         "expected": "bert",
-        "hit": true,
-        "top1": "emergent-abilities"
+        "hit": false,
+        "top1": "ddpm-ho"
       },
       {
         "q": "把句子里的词遮住让模型猜，这种训练方法有什么好处？",
@@ -46,7 +46,7 @@
         "type": "colloquial",
         "expected": "fedavg-survey",
         "hit": true,
-        "top1": "reflexion"
+        "top1": "fedavg-survey"
       },
       {
         "q": "扩散模型的逆向去噪过程是如何逐步生成图像的？",
@@ -87,7 +87,7 @@
         "q": "不用卷积网络，把图片切成小块喂给 Transformer 效果怎么样？",
         "type": "colloquial",
         "expected": "vit",
-        "hit": false,
+        "hit": true,
         "top1": "hugginggpt"
       },
       {
@@ -123,14 +123,14 @@
         "type": "term",
         "expected": "reflexion",
         "hit": true,
-        "top1": "hugginggpt"
+        "top1": "reflexion"
       },
       {
         "q": "智能体做错了任务之后怎么记住教训下次不犯？",
         "type": "colloquial",
         "expected": "reflexion",
         "hit": false,
-        "top1": "compute-scale-laws"
+        "top1": "rag-lewis-2020"
       },
       {
         "q": "参数量增大到什么程度会涌现出小模型不具备的能力？",
@@ -144,7 +144,7 @@
         "type": "colloquial",
         "expected": "emergent-abilities",
         "hit": false,
-        "top1": "compute-scale-laws"
+        "top1": "hugginggpt"
       },
       {
         "q": "让模型自己判断什么时候该查资料、查到的靠不靠谱，这种做法叫什么？",
@@ -160,7 +160,7 @@
     "hit_rate": 0.333,
     "term_hit_rate": 0.4,
     "colloquial_hit_rate": 0.273,
-    "p50_ms": 6.5,
+    "p50_ms": 4.6,
     "rows": [
       {
         "q": "Transformer 的编码器和解码器是怎么配合工作的？",
@@ -314,9 +314,9 @@
   {
     "mode": "hybrid_rrf",
     "hit_rate": 0.381,
-    "term_hit_rate": 0.5,
-    "colloquial_hit_rate": 0.273,
-    "p50_ms": 16.3,
+    "term_hit_rate": 0.4,
+    "colloquial_hit_rate": 0.364,
+    "p50_ms": 14.2,
     "rows": [
       {
         "q": "Transformer 的编码器和解码器是怎么配合工作的？",
@@ -329,15 +329,15 @@
         "q": "机器翻译模型怎么同时记住句子的前后文？",
         "type": "colloquial",
         "expected": "attention-is-all-you-need",
-        "hit": false,
+        "hit": true,
         "top1": "rag-lewis-2020"
       },
       {
         "q": "BERT 预训练时的掩码策略具体是怎么做的？",
         "type": "term",
         "expected": "bert",
-        "hit": true,
-        "top1": "emergent-abilities"
+        "hit": false,
+        "top1": "ddpm-ho"
       },
       {
         "q": "把句子里的词遮住让模型猜，这种训练方法有什么好处？",
@@ -358,7 +358,7 @@
         "type": "colloquial",
         "expected": "fedavg-survey",
         "hit": true,
-        "top1": "reflexion"
+        "top1": "fedavg-survey"
       },
       {
         "q": "扩散模型的逆向去噪过程是如何逐步生成图像的？",
@@ -435,14 +435,14 @@
         "type": "term",
         "expected": "reflexion",
         "hit": true,
-        "top1": "hugginggpt"
+        "top1": "reflexion"
       },
       {
         "q": "智能体做错了任务之后怎么记住教训下次不犯？",
         "type": "colloquial",
         "expected": "reflexion",
         "hit": false,
-        "top1": "compute-scale-laws"
+        "top1": "rag-lewis-2020"
       },
       {
         "q": "参数量增大到什么程度会涌现出小模型不具备的能力？",
@@ -456,7 +456,7 @@
         "type": "colloquial",
         "expected": "emergent-abilities",
         "hit": false,
-        "top1": "compute-scale-laws"
+        "top1": "hugginggpt"
       },
       {
         "q": "让模型自己判断什么时候该查资料、查到的靠不靠谱，这种做法叫什么？",
@@ -469,10 +469,10 @@
   },
   {
     "mode": "hybrid_full",
-    "hit_rate": 0.952,
+    "hit_rate": 0.905,
     "term_hit_rate": 1.0,
-    "colloquial_hit_rate": 0.909,
-    "p50_ms": 21763.6,
+    "colloquial_hit_rate": 0.818,
+    "p50_ms": 8395.2,
     "rows": [
       {
         "q": "Transformer 的编码器和解码器是怎么配合工作的？",
@@ -486,14 +486,14 @@
         "type": "colloquial",
         "expected": "attention-is-all-you-need",
         "hit": true,
-        "top1": "bert"
+        "top1": "attention-is-all-you-need"
       },
       {
         "q": "BERT 预训练时的掩码策略具体是怎么做的？",
         "type": "term",
         "expected": "bert",
         "hit": true,
-        "top1": "xlnet"
+        "top1": "bert"
       },
       {
         "q": "把句子里的词遮住让模型猜，这种训练方法有什么好处？",
@@ -521,14 +521,14 @@
         "type": "term",
         "expected": "ddpm-ho",
         "hit": true,
-        "top1": "emergent-abilities"
+        "top1": "ddpm-ho"
       },
       {
         "q": "AI 从一堆噪点里一步步画出图来的原理是什么？",
         "type": "colloquial",
         "expected": "ddpm-ho",
-        "hit": true,
-        "top1": "ddpm-ho"
+        "hit": false,
+        "top1": "emergent-abilities"
       },
       {
         "q": "思维链提示为什么能提升大模型的数学推理准确率？",
@@ -598,21 +598,21 @@
         "type": "colloquial",
         "expected": "reflexion",
         "hit": false,
-        "top1": "self-rag"
+        "top1": "hugginggpt"
       },
       {
         "q": "参数量增大到什么程度会涌现出小模型不具备的能力？",
         "type": "term",
         "expected": "emergent-abilities",
         "hit": true,
-        "top1": "emergent-abilities"
+        "top1": "compute-scale-laws"
       },
       {
         "q": "为什么模型越大突然就会做以前完全不会的事？",
         "type": "colloquial",
         "expected": "emergent-abilities",
         "hit": true,
-        "top1": "emergent-abilities"
+        "top1": "hugginggpt"
       },
       {
         "q": "让模型自己判断什么时候该查资料、查到的靠不靠谱，这种做法叫什么？",
