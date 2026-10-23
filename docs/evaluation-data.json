@@ -160,7 +160,7 @@
     "hit_rate": 0.333,
     "term_hit_rate": 0.4,
     "colloquial_hit_rate": 0.273,
-    "p50_ms": 4.6,
+    "p50_ms": 3.8,
     "rows": [
       {
         "q": "Transformer 的编码器和解码器是怎么配合工作的？",
@@ -316,7 +316,7 @@
     "hit_rate": 0.381,
     "term_hit_rate": 0.4,
     "colloquial_hit_rate": 0.364,
-    "p50_ms": 14.2,
+    "p50_ms": 13.6,
     "rows": [
       {
         "q": "Transformer 的编码器和解码器是怎么配合工作的？",
@@ -469,10 +469,10 @@
   },
   {
     "mode": "hybrid_full",
-    "hit_rate": 0.905,
+    "hit_rate": 0.952,
     "term_hit_rate": 1.0,
-    "colloquial_hit_rate": 0.818,
-    "p50_ms": 8395.2,
+    "colloquial_hit_rate": 0.909,
+    "p50_ms": 8616.2,
     "rows": [
       {
         "q": "Transformer 的编码器和解码器是怎么配合工作的？",
@@ -527,8 +527,8 @@
         "q": "AI 从一堆噪点里一步步画出图来的原理是什么？",
         "type": "colloquial",
         "expected": "ddpm-ho",
-        "hit": false,
-        "top1": "emergent-abilities"
+        "hit": true,
+        "top1": "ddpm-ho"
       },
       {
         "q": "思维链提示为什么能提升大模型的数学推理准确率？",
@@ -598,7 +598,7 @@
         "type": "colloquial",
         "expected": "reflexion",
         "hit": false,
-        "top1": "hugginggpt"
+        "top1": "react-yao-2022"
       },
       {
         "q": "参数量增大到什么程度会涌现出小模型不具备的能力？",
@@ -612,7 +612,7 @@
         "type": "colloquial",
         "expected": "emergent-abilities",
         "hit": true,
-        "top1": "hugginggpt"
+        "top1": "emergent-abilities"
       },
       {
         "q": "让模型自己判断什么时候该查资料、查到的靠不靠谱，这种做法叫什么？",

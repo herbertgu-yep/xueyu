@@ -87,8 +87,31 @@ def main() -> None:
     results.append(run_mode("hybrid_rrf", qs, lambda q: asyncio.run(rag_service.query_shelf_hybrid(q, k=3))[0]))
 
     # 4) 混合全开（Multi-Query + LLM 重排）
-    results.append(run_mode("hybrid_full", qs, lambda q: asyncio.run(
-        rag_service.query_shelf_hybrid(q, k=3, multi_query=True, rerank=True))[0]))
+    # 这一档依赖真实模型调用；如果没配 Key 或调用失败，必须让评测直接失败，
+    # 否则会得到一份"看起来正常、实际没跑 LLM"的假数据。
+    from app.services import settings_store
+
+    if not settings_store.is_configured("research"):
+        raise SystemExit("未配置模型，hybrid_full 无法评测；请先配置 Key 或只跑前三档")
+
+    full_meta: list[dict] = []
+
+    def _full(q: str):
+        chunks, meta = asyncio.run(
+            rag_service.query_shelf_hybrid(q, k=3, multi_query=True, rerank=True))
+        full_meta.append(meta)
+        return chunks
+
+    results.append(run_mode("hybrid_full", qs, _full))
+
+    failed = [m for m in full_meta if not m.get("reranked")]
+    if failed:
+        raise SystemExit(
+            f"hybrid_full 有 {len(failed)} 题没有真正完成重排，数据不可用；"
+            f"首个错误：{failed[0].get('rerank_failed') or failed[0].get('rewrite_failed')}")
+    rewritten = sum(1 for m in full_meta if len(m.get("queries", [])) > 1)
+    print(f"\n模型调用自检：{rewritten}/{len(full_meta)} 题完成了多查询改写，"
+          f"{len(full_meta)}/{len(full_meta)} 题完成了 LLM 重排")
 
     OUT_PATH.write_text(json.dumps(results, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"\n{'模式':14s}{'命中率':>8s}{'术语':>8s}{'口语':>8s}{'p50(ms)':>10s}")

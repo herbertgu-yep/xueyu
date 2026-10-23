@@ -415,8 +415,8 @@ async def query_shelf_hybrid(query: str, *, doc_ids: Optional[list[int]] = None,
             variants = [str(v).strip() for v in data.get("variants", []) if str(v).strip()][:3]
             queries = [query] + variants
             meta["queries"] = queries
-        except Exception:
-            pass
+        except Exception as e:  # noqa: BLE001
+            meta["rewrite_failed"] = str(e)[:120]
 
     vector_hits: dict[str, dict] = {}
     bm25_hits: dict[str, dict] = {}
@@ -480,8 +480,8 @@ async def query_shelf_hybrid(query: str, *, doc_ids: Optional[list[int]] = None,
                     reranked.append(c)
             fused = reranked + fused[len(cand):]
             meta["reranked"] = True
-        except Exception:
-            pass
+        except Exception as e:  # noqa: BLE001
+            meta["rerank_failed"] = str(e)[:120]
     return fused[:k], meta
 
 
