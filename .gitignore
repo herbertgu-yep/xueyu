@@ -7,7 +7,7 @@ dist/
 build/
 
 # 学屿本地数据
-data/
+/data/
 
 # macOS
 .DS_Store

@@ -1,0 +1,110 @@
+{
+  "note": "检索质量测评问题集。type: term=术语型提问（含专业词），colloquial=口语型提问（大白话）。doc = 正确答案所在文档（判定依据）。判定规则：该文档的任一分块进入检索结果 top-3 记为命中。",
+  "questions": [
+    {
+      "q": "Transformer 的编码器和解码器是怎么配合工作的？",
+      "doc": "attention-is-all-you-need",
+      "type": "term"
+    },
+    {
+      "q": "机器翻译模型怎么同时记住句子的前后文？",
+      "doc": "attention-is-all-you-need",
+      "type": "colloquial"
+    },
+    {
+      "q": "BERT 预训练时的掩码策略具体是怎么做的？",
+      "doc": "bert",
+      "type": "term"
+    },
+    {
+      "q": "把句子里的词遮住让模型猜，这种训练方法有什么好处？",
+      "doc": "bert",
+      "type": "colloquial"
+    },
+    {
+      "q": "联邦学习客户端数据分布不一致会带来什么问题？",
+      "doc": "fedavg-survey",
+      "type": "term"
+    },
+    {
+      "q": "很多台手机各自用本地数据训练模型再汇总，效果为什么不好？",
+      "doc": "fedavg-survey",
+      "type": "colloquial"
+    },
+    {
+      "q": "扩散模型的逆向去噪过程是如何逐步生成图像的？",
+      "doc": "ddpm-ho",
+      "type": "term"
+    },
+    {
+      "q": "AI 从一堆噪点里一步步画出图来的原理是什么？",
+      "doc": "ddpm-ho",
+      "type": "colloquial"
+    },
+    {
+      "q": "思维链提示为什么能提升大模型的数学推理准确率？",
+      "doc": "chain-of-thought-wei",
+      "type": "term"
+    },
+    {
+      "q": "让模型一步一步想再给答案，为什么比直接给答案更准？",
+      "doc": "chain-of-thought-wei",
+      "type": "colloquial"
+    },
+    {
+      "q": "Vision Transformer 如何把图像切分成序列输入？",
+      "doc": "vit",
+      "type": "term"
+    },
+    {
+      "q": "不用卷积网络，把图片切成小块喂给 Transformer 效果怎么样？",
+      "doc": "vit",
+      "type": "colloquial"
+    },
+    {
+      "q": "RAG 检索增强生成中参数化记忆与非参数化记忆是如何分工的？",
+      "doc": "rag-lewis-2020",
+      "type": "term"
+    },
+    {
+      "q": "让大模型回答问题时先去资料库里查再答，这个流程是怎么运作的？",
+      "doc": "rag-lewis-2020",
+      "type": "colloquial"
+    },
+    {
+      "q": "Toolformer 如何自主决定调用哪个 API 工具？",
+      "doc": "toolformer",
+      "type": "term"
+    },
+    {
+      "q": "模型自己学会用计算器和搜索引擎查资料，这是怎么训练出来的？",
+      "doc": "toolformer",
+      "type": "colloquial"
+    },
+    {
+      "q": "Reflexion 中语言反馈如何替代梯度信号实现自我改进？",
+      "doc": "reflexion",
+      "type": "term"
+    },
+    {
+      "q": "智能体做错了任务之后怎么记住教训下次不犯？",
+      "doc": "reflexion",
+      "type": "colloquial"
+    },
+    {
+      "q": "参数量增大到什么程度会涌现出小模型不具备的能力？",
+      "doc": "emergent-abilities",
+      "type": "term"
+    },
+    {
+      "q": "为什么模型越大突然就会做以前完全不会的事？",
+      "doc": "emergent-abilities",
+      "type": "colloquial"
+    },
+    {
+      "q": "让模型自己判断什么时候该查资料、查到的靠不靠谱，这种做法叫什么？",
+      "doc": "self-rag",
+      "type": "colloquial"
+    }
+  ]
+}
