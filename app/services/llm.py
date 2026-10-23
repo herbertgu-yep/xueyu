@@ -109,7 +109,21 @@ def model_context_tokens(cfg: Optional[dict] = None) -> int:
     try:
         cfg = cfg or settings_store.llm_config()
         name = (cfg.get("model") or "").strip()
-        info = litellm.model_cost.get(name) or {}
+        provider = (cfg.get("provider") or "").strip()
+        candidates = [name]
+        if provider and not name.startswith(f"{provider}/"):
+            candidates.append(f"{provider}/{name}")
+        info = {}
+        for cand in candidates:
+            info = litellm.model_cost.get(cand) or {}
+            if info:
+                break
+        if not info and "/" not in name:
+            # 兜底：按后缀匹配，例如 deepseek-chat 命中 deepseek/deepseek-chat
+            for k, v in litellm.model_cost.items():
+                if k.endswith("/" + name):
+                    info = v
+                    break
         for key in ("max_input_tokens", "max_tokens"):
             v = info.get(key)
             if v and v > 1000:
@@ -130,6 +144,31 @@ def estimate_messages_tokens(messages: list[dict]) -> int:
     return sum(estimate_tokens(str(m.get("content", ""))) + 4 for m in messages)
 
 
+async def _shrink_long_messages(messages: list[dict], budget: int, *,
+                                 fn: Optional[str] = None, seg_chars: int = 6000) -> list[dict]:
+    """对单条超长消息做分段摘要（map-reduce），用于无法靠对话压缩的撰写场景。"""
+    out: list[dict] = []
+    for m in messages:
+        content = str(m.get("content") or "")
+        if m.get("role") == "system" or estimate_tokens(content) <= budget // 2:
+            out.append(m)
+            continue
+        segments = [content[i:i + seg_chars] for i in range(0, len(content), seg_chars)]
+        summaries: list[str] = []
+        for seg in segments:
+            try:
+                summary = await achat([
+                    {"role": "system", "content":
+                        "把下面这段材料压缩成要点，保留信源编号、数字、结论与关键术语；300 字以内。"},
+                    {"role": "user", "content": seg},
+                ], temperature=0.1, fn=fn)
+                summaries.append(summary)
+            except Exception:
+                summaries.append(seg[:1200])
+        out.append({**m, "content": "【材料摘要（原文过长，已分段压缩，编号含义不变）】\n" + "\n".join(summaries)})
+    return out
+
+
 async def compact_messages(messages: list[dict], *, fn: Optional[str] = None,
                            keep_recent: int = 6, budget_ratio: float = 0.45) -> list[dict]:
     """超预算时把较早的对话压缩成一条摘要（真实 LLM 调用）。
@@ -147,7 +186,8 @@ async def compact_messages(messages: list[dict], *, fn: Optional[str] = None,
     recent = rest[-keep_recent:]
     older = rest[:-keep_recent]
     if not older:
-        return messages
+        # 只有 system + 一条超长 user（报告撰写就是这种形态），按分段摘要压缩
+        return await _shrink_long_messages(messages, budget, fn=fn)
     transcript = "\n".join(f"[{m.get('role')}] {str(m.get('content', ''))[:1500]}" for m in older)
     summary = await achat([
         {"role": "system", "content":
@@ -245,7 +285,7 @@ async def achat(
     if max_tokens:
         kwargs["max_tokens"] = max_tokens
     try:
-        resp = await litellm.acompletion(**kwargs)
+        resp = await _acompletion_with_retry(kwargs)
     except Exception as e:  # noqa: BLE001
         raise LLMCallError(f"模型调用失败：{_brief(e)}") from e
     return (resp.choices[0].message.content or "").strip()
@@ -283,7 +323,7 @@ async def achat_raw(messages: list[dict], *, tools: Optional[list[dict]] = None,
         kwargs["tools"] = tools
         kwargs["tool_choice"] = "auto"
     try:
-        resp = await litellm.acompletion(**kwargs)
+        resp = await _acompletion_with_retry(kwargs)
     except Exception as e:  # noqa: BLE001
         raise LLMCallError(f"模型调用失败：{_brief(e)}") from e
     msg = resp.choices[0].message
@@ -382,6 +422,24 @@ def parse_json(text: str) -> Any:
                     except json.JSONDecodeError:
                         break
     raise LLMCallError(f"模型未返回可解析的 JSON：{text[:200]}")
+
+
+RETRYABLE = ("rate", "429", "timeout", "connection", "temporarily", "overloaded", "502", "503", "504")
+
+
+async def _acompletion_with_retry(kwargs: dict, attempts: int = 3) -> Any:
+    """限流/网络类错误做指数退避重试；其他错误直接抛。"""
+    last: Exception | None = None
+    for i in range(attempts):
+        try:
+            return await litellm.acompletion(**kwargs)
+        except Exception as e:  # noqa: BLE001
+            last = e
+            msg = str(e).lower()
+            if not any(k in msg for k in RETRYABLE) or i == attempts - 1:
+                raise
+            await asyncio.sleep(2**i + 0.3 * i)
+    raise last  # pragma: no cover
 
 
 def _brief(e: Exception) -> str:
