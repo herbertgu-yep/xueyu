@@ -71,25 +71,29 @@ class McpStdioClient:
         keep = ("PATH", "HOME", "LANG", "LC_ALL", "TMPDIR", "SYSTEMROOT", "USERPROFILE")
         env = {k: os.environ[k] for k in keep if k in os.environ}
         env.update(self.env)
-        self.proc = await asyncio.create_subprocess_exec(
-            self.command, *self.args,
-            stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.DEVNULL, env=env,
-        )
-        self._reader_task = asyncio.get_running_loop().create_task(self._read_loop())
-        await self._request("initialize", {
-            "protocolVersion": PROTOCOL_VERSION,
-            "capabilities": {},
-            "clientInfo": {"name": "xueyu", "version": "0.1.0"},
-        })
-        await self._send({"jsonrpc": "2.0", "method": "notifications/initialized"})
-        result = await self._request("tools/list", {})
-        self.tools = [
-            {"name": t.get("name", ""), "description": (t.get("description") or "")[:300],
-             "inputSchema": t.get("inputSchema") or {"type": "object", "properties": {}}}
-            for t in (result or {}).get("tools", [])
-        ]
-        self.started = True
+        try:
+            self.proc = await asyncio.create_subprocess_exec(
+                self.command, *self.args,
+                stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.DEVNULL, env=env,
+            )
+            self._reader_task = asyncio.get_running_loop().create_task(self._read_loop())
+            await self._request("initialize", {
+                "protocolVersion": PROTOCOL_VERSION,
+                "capabilities": {},
+                "clientInfo": {"name": "xueyu", "version": "0.1.0"},
+            })
+            await self._send({"jsonrpc": "2.0", "method": "notifications/initialized"})
+            result = await self._request("tools/list", {})
+            self.tools = [
+                {"name": t.get("name", ""), "description": (t.get("description") or "")[:300],
+                 "inputSchema": t.get("inputSchema") or {"type": "object", "properties": {}}}
+                for t in (result or {}).get("tools", [])
+            ]
+            self.started = True
+        except Exception:
+            await self.stop()   # 握手失败也要把子进程和 reader task 收干净
+            raise
 
     async def call(self, tool_name: str, arguments: dict) -> str:
         result = await self._request("tools/call", {"name": tool_name, "arguments": arguments}, timeout=60)
@@ -100,13 +104,36 @@ class McpStdioClient:
         return "\n".join(parts)[:8000] or "（工具无输出）"
 
     async def stop(self) -> None:
-        if self.proc:
+        self.started = False
+        task, self._reader_task = self._reader_task, None
+        if task and not task.done():
+            task.cancel()
             try:
-                self.proc.kill()
+                await task
+            except asyncio.CancelledError:
+                pass
             except Exception:
                 pass
-            self.proc = None
-        self.started = False
+        for fut in list(self._pending.values()):
+            if not fut.done():
+                fut.set_exception(RuntimeError("MCP 连接已关闭"))
+        self._pending.clear()
+        proc, self.proc = self.proc, None
+        if proc:
+            try:
+                proc.kill()
+            except Exception:
+                pass
+            try:
+                await asyncio.wait_for(proc.wait(), timeout=3)
+            except Exception:
+                pass
+            for stream in (proc.stdin, proc.stdout):
+                try:
+                    if stream:
+                        stream.close()
+                except Exception:
+                    pass
 
 
 async def connect_all(servers: list[dict]) -> tuple[list[McpStdioClient], list[str]]:
