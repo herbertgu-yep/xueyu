@@ -108,7 +108,8 @@ cd xueyu
 ```
 
 > 首次使用在「设置」中配置模型（OpenAI / Claude / DeepSeek / 通义 / GLM / Kimi / Ollama 均可），  
-> API Key 只保存在本机。
+> API Key 只保存在本机。  
+> 首次使用书架检索会下载本地向量与重排模型（共约 2.2GB，缓存在 `~/.cache/huggingface`）。
 
 ### 打包为 macOS 应用
 
