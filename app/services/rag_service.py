@@ -114,35 +114,111 @@ def _make_local_embedding(model_name: str):
 def _make_api_embedding(cfg: dict):
     """OpenAI 兼容 embedding API（litellm 统一各家：openai/通义/智谱/…）。"""
     import litellm as _litellm
-    from llama_index.core.callbacks import CallbackManager
-    from llama_index.core.embeddings import MockEmbedding
+    from llama_index.core.embeddings import BaseEmbedding
 
     base_url = (cfg.get("api_base_url") or "").strip() or None
     api_key = (cfg.get("api_key") or "").strip() or "sk-empty"
     api_model = (cfg.get("api_model") or "text-embedding-3-small").strip()
 
-    class ApiEmbedding(MockEmbedding):
+    def _embed(texts: list[str]) -> list[list[float]]:
+        resp = _litellm.embedding(model=api_model, input=texts, api_key=api_key,
+                                  base_url=base_url, timeout=30)
+        return [item["embedding"] for item in resp.data]
+
+    class ApiEmbedding(BaseEmbedding):
         """LlamaIndex BaseEmbedding 适配：远程 /embeddings 调用。"""
 
         def __init__(self):
             super().__init__(embed_batch_size=32, model_name=api_model)
-            self.callback_manager = CallbackManager([])
 
         def _get_query_embedding(self, query: str):
-            return self._embed([query])[0]
+            return _embed([query])[0]
 
         async def _aget_query_embedding(self, query: str):
-            return self._embed([query])[0]
+            return _embed([query])[0]
+
+        def _get_text_embedding(self, text: str):
+            return _embed([text])[0]
+
+        async def _aget_text_embedding(self, text: str):
+            return _embed([text])[0]
 
         def _get_text_embeddings(self, texts: list[str]):
-            return self._embed(texts)
+            return _embed(texts)
 
-        def _embed(self, texts: list[str]) -> list[list[float]]:
-            resp = _litellm.embedding(model=api_model, input=texts, api_key=api_key,
-                                      base_url=base_url, timeout=30)
-            return [item["embedding"] for item in resp.data]
+        async def _aget_text_embeddings(self, texts: list[str]):
+            return _embed(texts)
 
     return ApiEmbedding()
+
+
+def _make_dashscope_embedding(cfg: dict):
+    """DashScope 原生 embedding 协议（阿里云百炼 / 千问 MaaS）。
+
+    与 OpenAI 兼容接口不同，这条路径是 /services/embeddings/text-embedding/text-embedding，
+    请求体 {"model", "input": {"texts": [...]}}，返回 output.embeddings[].embedding。
+    """
+    import httpx
+    from llama_index.core.embeddings import BaseEmbedding
+
+    base = (cfg.get("api_base_url") or "https://dashscope.aliyuncs.com/api/v1").rstrip("/")
+    url = f"{base}/services/embeddings/text-embedding/text-embedding"
+    api_key = (cfg.get("api_key") or "").strip()
+    api_model = (cfg.get("api_model") or "text-embedding-v3").strip()
+    batch_size = 16
+
+    def _embed(texts: list[str]) -> list[list[float]]:
+        out: list[list[float]] = []
+        for i in range(0, len(texts), batch_size):
+            batch = texts[i:i + batch_size]
+            try:
+                resp = httpx.post(
+                    url,
+                    headers={"Authorization": f"Bearer {api_key}"},
+                    json={"model": api_model, "input": {"texts": batch}},
+                    timeout=60,
+                )
+            except Exception as e:  # noqa: BLE001
+                raise RuntimeError(f"DashScope embedding 请求失败：{e}") from e
+            if resp.status_code != 200:
+                raise RuntimeError(
+                    f"DashScope embedding HTTP {resp.status_code}：{resp.text[:200]}")
+            items = ((resp.json().get("output") or {}).get("embeddings") or [])
+            if len(items) != len(batch):
+                raise RuntimeError(
+                    f"DashScope embedding 返回条数不符：{len(items)} != {len(batch)}")
+            out.extend(item["embedding"] for item in items)
+        return out
+
+    class DashScopeEmbedding(BaseEmbedding):
+        def __init__(self):
+            super().__init__(embed_batch_size=batch_size, model_name=api_model)
+
+        def _get_query_embedding(self, query: str):
+            return _embed([query])[0]
+
+        async def _aget_query_embedding(self, query: str):
+            import asyncio
+
+            return await asyncio.to_thread(_embed, [query])[0]
+
+        def _get_text_embedding(self, text: str):
+            return _embed([text])[0]
+
+        async def _aget_text_embedding(self, text: str):
+            import asyncio
+
+            return await asyncio.to_thread(_embed, [text])[0]
+
+        def _get_text_embeddings(self, texts: list[str]):
+            return _embed(texts)
+
+        async def _aget_text_embeddings(self, texts: list[str]):
+            import asyncio
+
+            return await asyncio.to_thread(_embed, texts)
+
+    return DashScopeEmbedding()
 
 
 def local_embedding_available() -> bool:
@@ -172,7 +248,10 @@ def _get_embed_model():
                     "API 服务并填入支持 embeddings 的服务商（OpenAI / 通义 / 智谱等）"
                 )
             if (cfg.get("mode") or "local") == "api":
-                _embed_model = _make_api_embedding(cfg)
+                if (cfg.get("api_provider") or "openai") == "dashscope":
+                    _embed_model = _make_dashscope_embedding(cfg)
+                else:
+                    _embed_model = _make_api_embedding(cfg)
             else:
                 _embed_model = _make_local_embedding(cfg.get("model") or "BAAI/bge-small-zh-v1.5")
         return _embed_model
@@ -396,23 +475,38 @@ def _rrf_fuse(vector_hits: list[dict], bm25_hits: list[dict], k: int = 60) -> li
     return fused
 
 
-async def _cross_encoder_rerank(query: str, chunks: list[dict]) -> Optional[list[dict]]:
-    """本地 cross-encoder 打分排序；模型不可用返回 None。
+def _rerank_limit() -> int:
+    """精排候选数：设置里可改，默认 12。"""
+    try:
+        n = int(settings_store.get("rerank").get("api_top_n") or CE_RERANK_LIMIT)
+        return min(50, max(1, n))
+    except Exception:  # noqa: BLE001
+        return CE_RERANK_LIMIT
 
-    只精排 RRF 的前 12 个候选：实测再往后放候选不再提升 top-3 命中率，
-    但 CPU 耗时随候选数线性增长（12 个约 3s，40 个约 10s）。
+
+async def _cross_encoder_rerank(query: str, chunks: list[dict]) -> Optional[list[dict]]:
+    """本地 cross-encoder 或远程 rerank API；都不可用返回 None。
+
+    只精排前 N 个候选：实测再往后放候选不再提升 top-3 命中率，
+    但耗时随候选数线性增长（12 个约 2-3s，40 个约 10s）。
     """
     import asyncio as _asyncio
 
     from app.services import rerank as rerank_mod
 
-    return await _asyncio.to_thread(rerank_mod.rerank, query, chunks, limit=CE_RERANK_LIMIT)
+    return await _asyncio.to_thread(rerank_mod.rerank, query, chunks, limit=_rerank_limit())
 
 
 def _rerank_model_name() -> str:
     from app.services import rerank as rerank_mod
 
     return rerank_mod.model_name()
+
+
+def _rerank_using_api() -> bool:
+    from app.services import rerank as rerank_mod
+
+    return rerank_mod.using_api()
 
 
 async def _llm_listwise_rerank(query: str, chunks: list[dict]) -> list[dict]:
@@ -512,7 +606,7 @@ async def query_shelf_hybrid(query: str, *, doc_ids: Optional[list[int]] = None,
         if engine != "llm":
             ranked = await _cross_encoder_rerank(query, fused)
             if ranked is not None:
-                meta["reranked"] = "cross_encoder"
+                meta["reranked"] = "rerank_api" if _rerank_using_api() else "cross_encoder"
                 meta["rerank_model"] = _rerank_model_name()
                 return ranked[:k], meta
         # cross-encoder 不可用，或显式指定 llm 时走 LLM listwise 重排

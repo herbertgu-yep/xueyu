@@ -82,8 +82,14 @@
             <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">
               <span class="chip" id="emb-ollama" title="本机 Ollama 提供 embedding（需先 ollama pull nomic-embed-text）">🦙 用本机 Ollama</span>
               <span class="chip" id="emb-zhipu" title="智谱 embedding-3">✳ 智谱 Embedding</span>
-              <span class="chip" id="emb-dashscope" title="通义 text-embedding-v3">☁ 通义 Embedding</span>
+              <span class="chip" id="emb-dashscope" title="通义官方兼容接口">☁ 通义 Embedding</span>
+              <span class="chip" id="emb-qwen-maas" title="千问 MaaS / 百炼原生协议">☁ 千问 MaaS</span>
             </div>
+            <div class="field"><label>接口协议</label>
+              <select class="input" id="emb-api-provider">
+                <option value="openai">OpenAI 兼容（/embeddings）</option>
+                <option value="dashscope">DashScope 原生（services/embeddings）</option>
+              </select></div>
             <div class="field"><label>API Base URL（留空用 OpenAI 官方）</label>
               <input class="input" id="emb-api-url" placeholder="https://dashscope.aliyuncs.com/compatible-mode/v1"></div>
             <div class="field"><label>API Key</label>
@@ -102,6 +108,32 @@
           <div id="emb-test-result" style="font-size:12px;margin-top:8px;font-weight:700"></div>
           <div id="index-status" style="font-size:12px;color:var(--dim);font-weight:700;margin:8px 0 10px"></div>
           <button class="btn sm blu" id="reindex-btn">↻ 重建全部索引</button>
+        </div>
+
+        <!-- 检索重排 -->
+        <div class="card set-card">
+          <h3>🎚 检索重排（Rerank）</h3>
+          <div class="hint">混合检索融合后，用重排把最相关的片段顶到前面。本地模型不花钱，远程接口更快或更强。</div>
+          <div class="field"><label>重排来源</label>
+            <select class="input" id="rr-mode">
+              <option value="local">💻 本地 cross-encoder</option>
+              <option value="api">☁️ DashScope 原生 rerank API</option>
+            </select></div>
+          <div id="rr-api" style="display:none">
+            <div class="field"><label>API Base URL</label>
+              <input class="input" id="rr-api-url" placeholder="https://cn-beijing.maas.qianwenaiapi.com/api/v1"></div>
+            <div class="field"><label>API Key</label>
+              <input class="input" type="password" id="rr-api-key" placeholder="sk-…"></div>
+            <div class="field"><label>模型名</label>
+              <input class="input" id="rr-api-model" placeholder="qwen3.7-text-rerank"></div>
+            <div class="field"><label>精排候选数</label>
+              <input class="input" id="rr-top-n" type="number" min="1" max="50" value="12"></div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn sm" id="save-rerank">💾 保存</button>
+            <button class="btn sm ghost" id="test-rerank">🔌 测试</button>
+          </div>
+          <div id="rr-test-result" style="font-size:12px;margin-top:8px;font-weight:700"></div>
         </div>
 
         <!-- 深度研究 Agent -->
@@ -199,6 +231,7 @@ async function load() {
   $('#emb-api-url').value = emb.api_base_url || '';
   $('#emb-api-key').value = emb.api_key || '';
   $('#emb-api-model').value = emb.api_model || 'text-embedding-3-small';
+  $('#emb-api-provider').value = emb.api_provider || 'openai';
   toggleEmbMode();
   if ([...$('#embedding-model').options].some(o => o.value === emb.model)) $('#embedding-model').value = emb.model;
   else { $('#embedding-model').value = '__custom'; $('#embedding-custom').value = emb.model; }
@@ -208,6 +241,14 @@ async function load() {
 
   const idx = await api('/shelf/index/status');
   $('#index-status').textContent = `${idx.indexed_documents}/${idx.documents} 文档已向量化 · ${idx.chunks} 分块 · 模型 ${idx.embedding_model}`;
+
+  const rr = s.rerank || {};
+  $('#rr-mode').value = rr.mode || 'local';
+  $('#rr-api-url').value = rr.api_base_url || '';
+  $('#rr-api-key').value = rr.api_key || '';
+  $('#rr-api-model').value = rr.api_model || '';
+  $('#rr-top-n').value = rr.api_top_n || 12;
+  toggleRrMode();
 
   const ov = await api('/overview');
   $('#about-info').innerHTML = `
@@ -311,12 +352,15 @@ const EMB_PRESETS = {
   'emb-ollama': {api_base_url: 'http://localhost:11434/v1', api_model: 'nomic-embed-text', fill_key: false},
   'emb-zhipu': {api_base_url: 'https://open.bigmodel.cn/api/paas/v4', api_model: 'embedding-3'},
   'emb-dashscope': {api_base_url: 'https://dashscope.aliyuncs.com/compatible-mode/v1', api_model: 'text-embedding-v3'},
+  'emb-qwen-maas': {api_base_url: 'https://cn-beijing.maas.qianwenaiapi.com/api/v1',
+                    api_model: 'qwen3.7-text-embedding-flash', api_provider: 'dashscope'},
 };
 Object.entries(EMB_PRESETS).forEach(([id, p]) => {
   const el = document.getElementById(id);
   if (el) el.onclick = () => {
     $('#emb-mode').value = 'api';
     toggleEmbMode();
+    $('#emb-api-provider').value = p.api_provider || 'openai';
     $('#emb-api-url').value = p.api_base_url;
     $('#emb-api-model').value = p.api_model;
     if (p.fill_key === false) $('#emb-api-key').value = $('#emb-api-key').value || 'ollama';
@@ -335,6 +379,7 @@ function currentEmbPayload() {
   return {
     mode: $('#emb-mode').value,
     model: localModel || 'BAAI/bge-small-zh-v1.5',
+    api_provider: $('#emb-api-provider').value,
     api_base_url: $('#emb-api-url').value.trim(),
     api_key: $('#emb-api-key').value.trim(),
     api_model: $('#emb-api-model').value.trim(),
@@ -353,6 +398,37 @@ $('#test-embedding').onclick = async () => {
   try {
     const res = await api('/settings/embedding/test', {method: 'POST', body: currentEmbPayload()});
     r.innerHTML = `<span class="pill-ok">✓ 成功</span> —— 维度 ${res.dim} · 耗时 ${res.ms}ms`;
+  } catch (e) { r.innerHTML = `<span class="pill-bad">✗ ${esc(e.message)}</span>`; }
+};
+
+/* ---------- 重排设置 ---------- */
+function toggleRrMode() {
+  $('#rr-api').style.display = $('#rr-mode').value === 'api' ? '' : 'none';
+}
+$('#rr-mode').onchange = toggleRrMode;
+function currentRerankPayload() {
+  const n = parseInt($('#rr-top-n').value, 10);
+  return {
+    mode: $('#rr-mode').value,
+    api_provider: 'dashscope',
+    api_base_url: $('#rr-api-url').value.trim(),
+    api_key: $('#rr-api-key').value.trim(),
+    api_model: $('#rr-api-model').value.trim(),
+    api_top_n: Number.isFinite(n) ? Math.min(50, Math.max(1, n)) : 12,
+  };
+}
+$('#save-rerank').onclick = async () => {
+  try {
+    await api('/settings/rerank', {method: 'PUT', body: currentRerankPayload()});
+    toast('重排设置已保存', '', 'ok');
+  } catch (e) { showError(e); }
+};
+$('#test-rerank').onclick = async () => {
+  const r = $('#rr-test-result');
+  r.innerHTML = '⏳ 测试中…';
+  try {
+    const res = await api('/settings/rerank/test', {method: 'POST', body: currentRerankPayload()});
+    r.innerHTML = `<span class="pill-ok">✓ 成功</span> —— 最高相关性 ${res.top_score} · 耗时 ${res.ms}ms`;
   } catch (e) { r.innerHTML = `<span class="pill-bad">✗ ${esc(e.message)}</span>`; }
 };
 

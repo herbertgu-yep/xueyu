@@ -59,6 +59,8 @@ def _mask(key: str) -> str:
 def get_settings():
     entries = settings_store.list_provider_entries()
     routing = settings_store.get_routing()
+    rerank_cfg = settings_store.get("rerank")
+    emb_cfg = settings_store.get("embedding")
     return {
         "providers_catalog": [
             {"id": pid, "label": p["label"], "base_url": p["base_url"], "models": p["models"]}
@@ -68,8 +70,10 @@ def get_settings():
         "routing": routing,
         "routing_functions": settings_store.ROUTING_FUNCTIONS,
         "model_configured": settings_store.is_configured(),
-        "embedding": settings_store.get("embedding"),
+        "embedding": {**emb_cfg, "api_key": _mask(emb_cfg.get("api_key", ""))},
         "embedding_local_available": _embedding_local_available(),
+        "rerank": {**rerank_cfg, "api_key": _mask(rerank_cfg.get("api_key", ""))},
+        "api_protocols": settings_store.API_PROTOCOLS,
         "reminder": settings_store.get("reminder"),
         "general": settings_store.get("general"),
         "embedding_presets": settings_store.EMBEDDING_PRESETS,
@@ -264,6 +268,7 @@ async def test_mcp(body: McpTestIn):
 class EmbeddingIn(BaseModel):
     mode: str = "local"            # local | api
     model: str = "BAAI/bge-small-zh-v1.5"
+    api_provider: str = "openai"   # openai | dashscope
     api_base_url: str = ""
     api_key: str = ""
     api_model: str = "text-embedding-3-small"
@@ -273,14 +278,15 @@ class EmbeddingIn(BaseModel):
 def put_embedding(body: EmbeddingIn):
     if body.mode not in ("local", "api"):
         raise HTTPException(400, "embedding 模式只能是 local 或 api")
+    if body.api_provider not in ("openai", "dashscope"):
+        raise HTTPException(400, "embedding 协议只能是 openai 或 dashscope")
     old = settings_store.get("embedding")
     new_cfg = body.model_dump()
     # 掩码 Key 保留原值
     if new_cfg["api_key"].startswith("•"):
         new_cfg["api_key"] = old.get("api_key", "")
-    changed = (old.get("mode") != new_cfg["mode"] or old.get("model") != new_cfg["model"]
-               or old.get("api_base_url") != new_cfg["api_base_url"]
-               or old.get("api_key") != new_cfg["api_key"] or old.get("api_model") != new_cfg["api_model"])
+    changed = any(old.get(k) != new_cfg[k] for k in
+                  ("mode", "model", "api_provider", "api_base_url", "api_key", "api_model"))
     settings_store.put("embedding", new_cfg, merge=False)
     if changed:
         from app.services import rag_service
@@ -294,6 +300,7 @@ def put_embedding(body: EmbeddingIn):
 class EmbeddingTestIn(BaseModel):
     mode: str = "local"
     model: str = "BAAI/bge-small-zh-v1.5"
+    api_provider: str = "openai"
     api_base_url: str = ""
     api_key: str = ""
     api_model: str = "text-embedding-3-small"
@@ -304,18 +311,98 @@ async def test_embedding(body: EmbeddingTestIn):
     """真实调用 embedding（本地或 API），返回维度与耗时。"""
     import time as _time
 
-    from app.services.rag_service import _make_api_embedding, _make_local_embedding
+    from app.services.rag_service import (
+        _make_api_embedding, _make_dashscope_embedding, _make_local_embedding)
 
+    cfg = body.model_dump()
+    if (cfg.get("api_key") or "").startswith("•"):   # 前端展示的是掩码，测试时用已保存的 Key
+        cfg["api_key"] = settings_store.get("embedding").get("api_key", "")
     try:
         if body.mode == "local" and not _embedding_local_available():
             raise HTTPException(400, "打包版不含本地向量化模型，请使用 API 服务模式")
         t0 = _time.time()
-        emb = _make_local_embedding(body.model) if body.mode == "local" else _make_api_embedding(body.model_dump())
+        if body.mode == "local":
+            emb = _make_local_embedding(body.model)
+        elif body.api_provider == "dashscope":
+            emb = _make_dashscope_embedding(cfg)
+        else:
+            emb = _make_api_embedding(cfg)
         vec = emb.get_text_embedding("间隔重复测试")
         ms = int((_time.time() - t0) * 1000)
         return {"ok": True, "dim": len(vec), "ms": ms}
     except Exception as e:  # noqa: BLE001
         raise HTTPException(400, f"embedding 测试失败：{e}")
+
+
+class RerankIn(BaseModel):
+    mode: str = "local"            # local | api
+    api_provider: str = "dashscope"
+    api_base_url: str = ""
+    api_key: str = ""
+    api_model: str = ""
+    api_top_n: int = 12
+
+
+@router.put("/settings/rerank")
+def put_rerank(body: RerankIn):
+    if body.mode not in ("local", "api"):
+        raise HTTPException(400, "rerank 模式只能是 local 或 api")
+    if body.api_provider != "dashscope":
+        raise HTTPException(400, "目前远程重排只支持 DashScope 原生协议")
+    old = settings_store.get("rerank")
+    new_cfg = body.model_dump()
+    if new_cfg["api_key"].startswith("•"):
+        new_cfg["api_key"] = old.get("api_key", "")
+    settings_store.put("rerank", new_cfg, merge=False)
+    from app.services import rerank
+
+    rerank.reset_api_state()
+    return {"ok": True, "config": {**new_cfg, "api_key": _mask(new_cfg.get("api_key", ""))}}
+
+
+class RerankTestIn(BaseModel):
+    mode: str = "api"
+    api_provider: str = "dashscope"
+    api_base_url: str = ""
+    api_key: str = ""
+    api_model: str = ""
+    api_top_n: int = 12
+
+
+@router.post("/settings/rerank/test")
+async def test_rerank(body: RerankTestIn):
+    """用三条样例文本真实调用一次重排，返回排序与最高分。"""
+    import time as _time
+
+    from app.services import rerank
+
+    cfg = body.model_dump()
+    if (cfg.get("api_key") or "").startswith("•"):
+        cfg["api_key"] = settings_store.get("rerank").get("api_key", "")
+    if body.mode == "local":
+        t0 = _time.time()
+        out = rerank._rerank_local("什么是文本排序模型",
+                                   [{"text": "文本排序模型用于搜索与推荐"},
+                                    {"text": "量子计算是计算科学的前沿"},
+                                    {"text": "预训练语言模型推动了排序模型"}],
+                                   None, 1200)
+        if out is None:
+            raise HTTPException(400, f"本地重排模型不可用：{rerank.unavailable_reason()}")
+        return {"ok": True, "ms": int((_time.time() - t0) * 1000),
+                "top_score": out[0].get("rerank_score") if out else None}
+    try:
+        t0 = _time.time()
+        out = rerank._rerank_api("什么是文本排序模型",
+                                 [{"text": "文本排序模型用于搜索与推荐"},
+                                  {"text": "量子计算是计算科学的前沿"},
+                                  {"text": "预训练语言模型推动了排序模型"}],
+                                 cfg, None, 1200)
+        if out is None:
+            raise RuntimeError(rerank.unavailable_reason() or "调用失败")
+        return {"ok": True, "ms": int((_time.time() - t0) * 1000),
+                "top_score": out[0].get("rerank_score") if out else None}
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(400, f"rerank 测试失败：{e}")
 
 
 class ReminderIn(BaseModel):

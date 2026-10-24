@@ -26,6 +26,12 @@ EMBEDDING_PRESETS = [
     {"id": "BAAI/bge-m3", "label": "BGE-M3（效果最好，约 2.3GB）"},
 ]
 
+# 远程 embedding / rerank 的协议：openai 走 /embeddings，dashscope 走 services/xxx 原生路径
+API_PROTOCOLS = [
+    {"id": "openai", "label": "OpenAI 兼容（/embeddings）"},
+    {"id": "dashscope", "label": "DashScope 原生（阿里云百炼 / 千问 MaaS）"},
+]
+
 DEFAULTS: dict[str, Any] = {
     "model": {  # 旧版单模型配置（保留做迁移源）
         "provider": "openai",
@@ -39,8 +45,10 @@ DEFAULTS: dict[str, Any] = {
     "research": {"paradigm": "plan_execute", "react_max_steps": 14, "auto_memory": True,
                  "hybrid_multi_query": True, "hybrid_rerank": False},
     "mcp_servers": {"items": []},   # [{id, name, command, args[], env{}, enabled}]
-    "embedding": {"mode": "local", "model": "BAAI/bge-small-zh-v1.5",
+    "embedding": {"mode": "local", "model": "BAAI/bge-small-zh-v1.5", "api_provider": "openai",
                   "api_base_url": "", "api_key": "", "api_model": "text-embedding-3-small"},
+    "rerank": {"mode": "local", "api_provider": "dashscope", "api_base_url": "", "api_key": "",
+               "api_model": "", "api_top_n": 12},
     "reminder": {"enabled": False, "time": "09:00"},
     "general": {"nickname": "同学", "daily_goal_minutes": 60},
 }
