@@ -308,6 +308,18 @@ def _page_of(text: str, which: str = "start") -> Optional[int]:
     return nums[0] if which == "start" else nums[-1]
 
 
+def _pages_for_chunks(pieces: list[str]) -> list[tuple[Optional[int], Optional[int]]]:
+    """按顺序补全页码：块里没有标记时沿用上一块的页码。"""
+    out: list[tuple[Optional[int], Optional[int]]] = []
+    current: Optional[int] = None
+    for piece in pieces:
+        nums = [int(x) for x in _PAGE_MARK.findall(piece or "")]
+        if nums:
+            current = nums[-1]
+        out.append((nums[0] if nums else current, nums[-1] if nums else current))
+    return out
+
+
 def split_chunks(text: str) -> list[str]:
     """统一的切块口径，向量索引与 BM25 都走这里，保证两路能对齐到同一个 chunk。"""
     from llama_index.core import Document as LlamaDocument
@@ -356,14 +368,15 @@ def index_document(doc_id: int) -> dict:
             from llama_index.core.schema import TextNode
 
             pieces = split_chunks(doc.text_content)
+            pages = _pages_for_chunks(pieces)
             nodes = [
                 TextNode(
                     text=piece,
                     id_=f"{doc.id}:{i}",
                     metadata={"doc_id": str(doc.id), "title": doc.title,
                               "chunk_id": f"{doc.id}:{i}",
-                              "page_start": _page_of(piece, "start"),
-                              "page_end": _page_of(piece, "end")},
+                              "page_start": pages[i][0],
+                              "page_end": pages[i][1]},
                     # 元数据只用于回溯出处，不参与向量化，避免标题泄漏进检索
                     excluded_embed_metadata_keys=["doc_id", "title", "chunk_id", "page_start", "page_end"],
                     excluded_llm_metadata_keys=["doc_id", "title", "chunk_id", "page_start", "page_end"],
