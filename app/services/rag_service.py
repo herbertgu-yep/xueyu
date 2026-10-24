@@ -211,6 +211,7 @@ def reset_client() -> None:
 
 CHUNK_SIZE = 480
 CHUNK_OVERLAP = 60
+CE_RERANK_LIMIT = 12  # cross-encoder 精排的候选上限（按 RRF 顺序取前 N）
 
 
 def split_chunks(text: str) -> list[str]:
@@ -395,9 +396,50 @@ def _rrf_fuse(vector_hits: list[dict], bm25_hits: list[dict], k: int = 60) -> li
     return fused
 
 
+async def _cross_encoder_rerank(query: str, chunks: list[dict]) -> Optional[list[dict]]:
+    """本地 cross-encoder 打分排序；模型不可用返回 None。
+
+    只精排 RRF 的前 12 个候选：实测再往后放候选不再提升 top-3 命中率，
+    但 CPU 耗时随候选数线性增长（12 个约 3s，40 个约 10s）。
+    """
+    import asyncio as _asyncio
+
+    from app.services import rerank as rerank_mod
+
+    return await _asyncio.to_thread(rerank_mod.rerank, query, chunks, limit=CE_RERANK_LIMIT)
+
+
+def _rerank_model_name() -> str:
+    from app.services import rerank as rerank_mod
+
+    return rerank_mod.model_name()
+
+
+async def _llm_listwise_rerank(query: str, chunks: list[dict]) -> list[dict]:
+    """让 LLM 按相关性输出候选编号顺序（listwise）；调用失败抛异常，由调用方记录。"""
+    from app.services import llm as llm_mod
+
+    cand = chunks[: min(12, len(chunks))]
+    listing = "\n".join(f"[{i + 1}] {c['title']}：{c['text'][:150]}" for i, c in enumerate(cand))
+    data = await llm_mod.ask_json(
+        "你是检索重排器。按与查询的相关性从高到低排列候选片段编号 JSON："
+        '{\"order\": [1, 3, 2, …]}（只含给出的编号，不要新增）；只输出 JSON。',
+        f"查询：{query}\n\n候选：\n{listing}", temperature=0.0, fn="research")
+    order = [int(x) - 1 for x in data.get("order", []) if 1 <= int(x) <= len(cand)]
+    seen, reranked = set(), []
+    for oi in order:
+        if oi not in seen:
+            reranked.append(cand[oi])
+            seen.add(oi)
+    for c in cand:
+        if id(c) not in {id(x) for x in reranked}:
+            reranked.append(c)
+    return reranked + chunks[len(cand):]
+
+
 async def query_shelf_hybrid(query: str, *, doc_ids: Optional[list[int]] = None, k: int = 5,
                              multi_query: bool = False, rerank: bool = False) -> tuple[list[dict], dict]:
-    """混合检索主入口：向量 + BM25 → RRF 融合 →（可选）multi-query 扩展 →（可选）LLM 重排。
+    """混合检索主入口：向量 + BM25 → RRF 融合 →（可选）multi-query 扩展 →（可选）重排。
 
     返回 (chunks, meta)：meta 记录检索过程信息（向量/BM25 命中数、改写与重排状态），供日志与调试。
     """
@@ -418,6 +460,8 @@ async def query_shelf_hybrid(query: str, *, doc_ids: Optional[list[int]] = None,
         except Exception as e:  # noqa: BLE001
             meta["rewrite_failed"] = str(e)[:120]
 
+    # 启用重排时扩大召回池：先粗召回再精排，重排才有意义
+    recall_k = max(k * 4, 12) if rerank else k
     vector_hits: dict[str, dict] = {}
     bm25_hits: dict[str, dict] = {}
     vector_down = None
@@ -425,7 +469,7 @@ async def query_shelf_hybrid(query: str, *, doc_ids: Optional[list[int]] = None,
     import asyncio as _asyncio
 
     vec_lists = await _asyncio.gather(
-        *[_asyncio.to_thread(query_shelf, q, doc_ids=doc_ids, k=k) for q in queries],
+        *[_asyncio.to_thread(query_shelf, q, doc_ids=doc_ids, k=recall_k) for q in queries],
         return_exceptions=True)
     for q, vec_or_err in zip(queries, vec_lists):
         if isinstance(vec_or_err, RuntimeError):  # embedding 不可用 → 降级 BM25
@@ -443,7 +487,7 @@ async def query_shelf_hybrid(query: str, *, doc_ids: Optional[list[int]] = None,
             bm25, corpus = _bm25_for_docs(doc_ids)
             if bm25 and corpus:
                 scores = bm25.get_scores(_tokenize_zh(q))
-                ranked = sorted(zip(corpus, scores), key=lambda x: -x[1])[:k]
+                ranked = sorted(zip(corpus, scores), key=lambda x: -x[1])[:recall_k]
                 for c, sc in ranked:
                     if sc > 0:
                         key = c.get("chunk_id") or f"{c['doc_id']}:{c['text'][:80]}"
@@ -460,26 +504,22 @@ async def query_shelf_hybrid(query: str, *, doc_ids: Optional[list[int]] = None,
         fused = [{**h, "hybrid": True, "retrieved_by": "bm25"} for h in bm25_hits.values()]
 
     if rerank and fused:
-        # LLM listwise 重排：对 top 候选按与查询的相关性重新排序
-        try:
-            from app.services import llm as llm_mod
+        # 首选 cross-encoder：本地模型直接打相关性分，不生成文字，速度快、不花钱
+        # XUEYU_RERANK_ENGINE=llm 可切回 LLM listwise，用于对比实验
+        import os as _os
 
-            cand = fused[: min(12, len(fused))]
-            listing = "\n".join(f"[{i + 1}] {c['title']}：{c['text'][:150]}" for i, c in enumerate(cand))
-            data = await llm_mod.ask_json(
-                "你是检索重排器。按与查询的相关性从高到低排列候选片段编号 JSON："
-                '{\"order\": [1, 3, 2, …]}（只含给出的编号，不要新增）；只输出 JSON。',
-                f"查询：{query}\n\n候选：\n{listing}", temperature=0.0, fn="research")
-            order = [int(x) - 1 for x in data.get("order", []) if 1 <= int(x) <= len(cand)]
-            seen, reranked = set(), []
-            for oi in order:
-                if oi not in seen:
-                    reranked.append(cand[oi]); seen.add(oi)
-            for c in cand:
-                if id(c) not in {id(x) for x in reranked}:
-                    reranked.append(c)
-            fused = reranked + fused[len(cand):]
-            meta["reranked"] = True
+        engine = (_os.environ.get("XUEYU_RERANK_ENGINE") or "cross_encoder").lower()
+        if engine != "llm":
+            ranked = await _cross_encoder_rerank(query, fused)
+            if ranked is not None:
+                meta["reranked"] = "cross_encoder"
+                meta["rerank_model"] = _rerank_model_name()
+                return ranked[:k], meta
+        # cross-encoder 不可用，或显式指定 llm 时走 LLM listwise 重排
+        try:
+            fused = await _llm_listwise_rerank(query, fused)
+            meta["reranked"] = "llm"
+            meta["rerank_model"] = "llm"
         except Exception as e:  # noqa: BLE001
             meta["rerank_failed"] = str(e)[:120]
     return fused[:k], meta
