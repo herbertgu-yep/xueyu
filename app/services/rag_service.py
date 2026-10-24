@@ -308,9 +308,6 @@ def split_chunks(text: str) -> list[str]:
 
 def index_document(doc_id: int) -> dict:
     """把单个文档的解析文本切块并向量化入库。"""
-    from llama_index.core import Document as LlamaDocument
-    from llama_index.core.node_parser import SentenceSplitter
-
     with Session(engine) as s:
         doc = s.get(Document, doc_id)
         if not doc:
@@ -331,14 +328,22 @@ def index_document(doc_id: int) -> dict:
         except Exception:
             pass
 
-        splitter = SentenceSplitter(chunk_size=CHUNK_SIZE, chunk_overlap=CHUNK_OVERLAP)
-        nodes = splitter.get_nodes_from_documents(
-            [LlamaDocument(id_=str(doc.id), text=doc.text_content,
-                           metadata={"doc_id": str(doc.id), "title": doc.title})],
-            show_progress=False,
-        )
-        for i, node in enumerate(nodes):
-            node.metadata = {**(node.metadata or {}), "chunk_id": f"{doc.id}:{i}"}
+        # 与 BM25 共用 split_chunks()：带 metadata 切块会改变边界，
+        # 两路的 chunk_id 就对不上，RRF 的"同一块两路命中"也就失效了。
+        from llama_index.core.schema import TextNode
+
+        pieces = split_chunks(doc.text_content)
+        nodes = [
+            TextNode(
+                text=piece,
+                id_=f"{doc.id}:{i}",
+                metadata={"doc_id": str(doc.id), "title": doc.title, "chunk_id": f"{doc.id}:{i}"},
+                # 元数据只用于回溯出处，不参与向量化，避免标题泄漏进检索
+                excluded_embed_metadata_keys=["doc_id", "title", "chunk_id"],
+                excluded_llm_metadata_keys=["doc_id", "title", "chunk_id"],
+            )
+            for i, piece in enumerate(pieces)
+        ]
         _get_index().insert_nodes(nodes, show_progress=False)
 
         doc.indexed = True
@@ -412,6 +417,13 @@ def reindex_all() -> dict:
 _bm25_cache: dict[str, Any] = {"corpus_sig": None, "bm25": None, "chunks": []}
 
 
+def _norm_text(text: str) -> str:
+    """去空白、标点、大小写，用于判断两条改写是否重复。"""
+    import re as _re
+
+    return _re.sub(r"[^0-9a-z\u4e00-\u9fff]+", "", str(text).lower())
+
+
 def _tokenize_zh(text: str) -> list[str]:
     """中文按字 + 英文按词的轻量分词（BM25 用，无外部依赖）。"""
     import re as _re
@@ -429,9 +441,9 @@ def _bm25_for_docs(doc_ids: Optional[list[int]] = None) -> tuple[Any, list[dict]
             docs = s.exec(select(Document).where(Document.id.in_(doc_ids))).all()
         else:
             docs = s.exec(select(Document)).all()
-        # 先用轻量签名判断缓存，避免每次查询都重新切块（切块是 CPU 密集操作）
-        sig = (tuple(sorted(doc_ids)) if doc_ids else "all",
-               sum(len(d.text_content or "") for d in docs), len(docs))
+        # 签名要能发现"内容被替换但总长度没变"：带上每篇的长度与索引时间
+        sig = (tuple(sorted(doc_ids)) if doc_ids else "all", len(docs),
+               tuple(sorted((d.id, len(d.text_content or ""), d.indexed_at or "") for d in docs)))
         with _state_lock:
             if _bm25_cache["corpus_sig"] == sig:
                 return _bm25_cache["bm25"], _bm25_cache["chunks"]
@@ -475,6 +487,75 @@ def _rrf_fuse(vector_hits: list[dict], bm25_hits: list[dict], k: int = 60) -> li
     return fused
 
 
+def _rrf_fuse_weighted(ranked_lists: list[list[dict]], weights: list[float],
+                       k: int = 60) -> list[dict]:
+    """跨查询的加权 RRF：每个查询先各自融合两路，再按查询权重累加排名分。
+
+    原查询权重 1.0、改写查询权重 0.7，避免改写跑偏时把原问题挤下去。
+    一个块被多个查询同时召回时分数自然叠加，排名贡献不会像按 chunk_id 去重那样丢掉。
+    """
+    scores: dict[str, dict] = {}
+    for ranked, w in zip(ranked_lists, weights):
+        for rank, h in enumerate(ranked):
+            key = h.get("chunk_id") or f"{h['doc_id']}:{h['text'][:80]}"
+            entry = scores.get(key)
+            if entry is None:
+                entry = {**h, "rrf": 0.0, "hits": 0}
+                scores[key] = entry
+            entry["rrf"] += w / (k + rank + 1)
+            entry["hits"] += 1
+    fused = sorted(scores.values(), key=lambda x: -x["rrf"])
+    for h in fused:
+        hits = h.pop("hits", 1)
+        src = h.get("retrieved_by") or "hybrid"
+        h["retrieved_by"] = f"{src}+multi" if hits > 1 else src
+    return fused
+
+
+async def _recall_and_fuse(queries: list[str], doc_ids: Optional[list[int]],
+                           recall_k: int, weights: Optional[list[float]] = None
+                           ) -> tuple[list[dict], dict]:
+    """多查询召回：每个查询内部先做向量 + BM25 的 RRF，再跨查询加权融合。"""
+    import asyncio as _asyncio
+
+    vec_lists = await _asyncio.gather(
+        *[_asyncio.to_thread(query_shelf, q, doc_ids=doc_ids, k=recall_k) for q in queries],
+        return_exceptions=True)
+
+    bm25, corpus = _bm25_for_docs(doc_ids)
+    per_query: list[list[dict]] = []
+    vec_keys: set[str] = set()
+    bm_keys: set[str] = set()
+    vector_down = None
+
+    for q, vec_or_err in zip(queries, vec_lists):
+        if isinstance(vec_or_err, RuntimeError):      # embedding 不可用 → 该路置空
+            vector_down = str(vec_or_err)[:120]
+            vec = []
+        elif isinstance(vec_or_err, BaseException):
+            vec = []
+        else:
+            vec = vec_or_err
+        for h in vec:
+            vec_keys.add(h.get("chunk_id") or f"{h['doc_id']}:{h['text'][:80]}")
+
+        bm: list[dict] = []
+        if bm25 and corpus:
+            scores = bm25.get_scores(_tokenize_zh(q))
+            ranked = sorted(zip(corpus, scores), key=lambda x: -x[1])[:recall_k]
+            bm = [{**c, "score": round(float(sc), 3)} for c, sc in ranked if sc > 0]
+            for c in bm:
+                bm_keys.add(c.get("chunk_id") or f"{c['doc_id']}:{c['text'][:80]}")
+
+        per_query.append(_rrf_fuse(vec, bm))
+
+    fused = _rrf_fuse_weighted(per_query, weights or [1.0] * len(queries))
+    stats = {"vec_hits": len(vec_keys), "bm25_hits": len(bm_keys)}
+    if vector_down:
+        stats["vector_down"] = vector_down
+    return fused, stats
+
+
 def _rerank_limit() -> int:
     """精排候选数：设置里可改，默认 12。"""
     try:
@@ -509,6 +590,12 @@ def _rerank_using_api() -> bool:
     return rerank_mod.using_api()
 
 
+def _rerank_fallback_count() -> int:
+    from app.services import rerank as rerank_mod
+
+    return rerank_mod.fallback_count()
+
+
 async def _llm_listwise_rerank(query: str, chunks: list[dict]) -> list[dict]:
     """让 LLM 按相关性输出候选编号顺序（listwise）；调用失败抛异常，由调用方记录。"""
     from app.services import llm as llm_mod
@@ -540,62 +627,33 @@ async def query_shelf_hybrid(query: str, *, doc_ids: Optional[list[int]] = None,
     meta = {"mode": "hybrid", "queries": [query], "vec_hits": 0, "bm25_hits": 0, "reranked": False}
     queries = [query]
     if multi_query:
-        # Multi-Query Retrieval：LLM 改写出多视角检索式，并行检索后融合
+        # Multi-Query Retrieval：面向"中文口语问英文论文"做跨语言改写
         try:
             from app.services import llm as llm_mod
 
             data = await llm_mod.ask_json(
-                "你是检索查询改写器。把查询改写为 2-3 个不同视角的检索式 JSON："
-                '{\"variants\": [\"…\"]}（含原查询的关键概念、同义词、上下位词）；只输出 JSON。',
+                "你是检索查询改写器，检索目标是英文论文库，用户可能用中文口语提问。"
+                "把问题改写成 3 条检索式，输出 JSON：{\"variants\": [\"…\"]}。"
+                "要求：① 一条中文同义改写；② 一条给出对应的英文术语/缩写；"
+                "③ 一条贴近论文表达的英文检索式。保留原问题的关键实体，不要重复；只输出 JSON。",
                 f"原查询：{query}", temperature=0.2, fn="research")
-            variants = [str(v).strip() for v in data.get("variants", []) if str(v).strip()][:3]
-            queries = [query] + variants
+            seen = {_norm_text(query)}
+            variants = []
+            for v in data.get("variants", []):
+                v = str(v).strip()
+                if v and _norm_text(v) not in seen:
+                    seen.add(_norm_text(v))
+                    variants.append(v)
+            queries = [query] + variants[:3]
             meta["queries"] = queries
         except Exception as e:  # noqa: BLE001
             meta["rewrite_failed"] = str(e)[:120]
 
     # 启用重排时扩大召回池：先粗召回再精排，重排才有意义
     recall_k = max(k * 4, 12) if rerank else k
-    vector_hits: dict[str, dict] = {}
-    bm25_hits: dict[str, dict] = {}
-    vector_down = None
-    # 多个检索式并行召回：query_shelf 是同步阻塞调用，放进线程池
-    import asyncio as _asyncio
-
-    vec_lists = await _asyncio.gather(
-        *[_asyncio.to_thread(query_shelf, q, doc_ids=doc_ids, k=recall_k) for q in queries],
-        return_exceptions=True)
-    for q, vec_or_err in zip(queries, vec_lists):
-        if isinstance(vec_or_err, RuntimeError):  # embedding 不可用 → 降级 BM25
-            vector_down = str(vec_or_err)[:120]
-            vec = []
-        elif isinstance(vec_or_err, BaseException):
-            vec = []
-        else:
-            vec = vec_or_err
-        for h in vec:
-            key = h.get("chunk_id") or f"{h['doc_id']}:{h['text'][:80]}"
-            if key not in vector_hits or (h.get("score") or 0) > (vector_hits[key].get("score") or 0):
-                vector_hits[key] = h
-        try:
-            bm25, corpus = _bm25_for_docs(doc_ids)
-            if bm25 and corpus:
-                scores = bm25.get_scores(_tokenize_zh(q))
-                ranked = sorted(zip(corpus, scores), key=lambda x: -x[1])[:recall_k]
-                for c, sc in ranked:
-                    if sc > 0:
-                        key = c.get("chunk_id") or f"{c['doc_id']}:{c['text'][:80]}"
-                        if key not in bm25_hits:
-                            bm25_hits[key] = {**c, "score": round(float(sc), 3)}
-        except Exception:
-            pass
-    meta["vec_hits"] = len(vector_hits)
-    meta["bm25_hits"] = len(bm25_hits)
-    if vector_down:
-        meta["vector_down"] = vector_down
-    fused = _rrf_fuse(list(vector_hits.values()), list(bm25_hits.values()))
-    if not fused and bm25_hits:
-        fused = [{**h, "hybrid": True, "retrieved_by": "bm25"} for h in bm25_hits.values()]
+    fused, stats = await _recall_and_fuse(
+        queries, doc_ids, recall_k, [1.0] + [0.7] * max(0, len(queries) - 1))
+    meta.update(stats)
 
     if rerank and fused:
         # 首选 cross-encoder：本地模型直接打相关性分，不生成文字，速度快、不花钱
@@ -604,8 +662,11 @@ async def query_shelf_hybrid(query: str, *, doc_ids: Optional[list[int]] = None,
 
         engine = (_os.environ.get("XUEYU_RERANK_ENGINE") or "cross_encoder").lower()
         if engine != "llm":
+            before_fallback = _rerank_fallback_count()
             ranked = await _cross_encoder_rerank(query, fused)
             if ranked is not None:
+                if _rerank_using_api() and _rerank_fallback_count() > before_fallback:
+                    meta["rerank_fallback"] = True   # 远程失败退回了本地，评测视为不可用
                 meta["reranked"] = "rerank_api" if _rerank_using_api() else "cross_encoder"
                 meta["rerank_model"] = _rerank_model_name()
                 return ranked[:k], meta

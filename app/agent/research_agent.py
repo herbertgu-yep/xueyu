@@ -396,8 +396,9 @@ class ResearchRunner:
                 multi_query=self.hybrid_multi_query, rerank=self.hybrid_rerank)
             if len(meta.get("queries", [])) > 1:
                 self.log(f"🔀 multi-query 改写为 {len(meta['queries'])} 个检索式", kind="ok")
-            self.log(f"混合检索：向量 {meta['vec_hits']} + BM25 {meta['bm25_hits']} → RRF 融合"
-                     + (" → LLM 重排" if meta.get("reranked") else ""), kind="ok")
+            how = {"rerank_api": " → 重排 API", "cross_encoder": " → cross-encoder 重排",
+                   "llm": " → LLM 重排"}.get(meta.get("reranked"), "")
+            self.log(f"混合检索：向量 {meta['vec_hits']} + BM25 {meta['bm25_hits']} → RRF 融合" + how, kind="ok")
         except Exception as e:  # noqa: BLE001
             self.log(f"⚠️ 混合检索失败：{e}", kind="warn")
             return
