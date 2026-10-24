@@ -178,3 +178,40 @@ def test_mcp_high_risk_waits_for_user_approval():
 
     asyncio.run(go())
     assert any(e == "approval" for e, _ in events)
+
+
+def test_index_failure_marks_document_unindexed(monkeypatch):
+    from sqlmodel import Session, SQLModel, create_engine
+
+    from app.storage.models import Document
+
+    eng = create_engine("sqlite://")
+    SQLModel.metadata.create_all(eng)
+    with Session(eng) as s:
+        doc = Document(title="t", filename="t.pdf", path="docs/t.pdf", fmt="pdf",
+                       size_bytes=10, text_content="正文内容" * 200)
+        s.add(doc)
+        s.commit()
+        s.refresh(doc)
+        doc_id = doc.id
+
+    import app.services.rag_service as rs
+    monkeypatch.setattr(rs, "engine", eng)
+    monkeypatch.setattr(rs, "Session", Session)
+
+    def boom():
+        raise RuntimeError("chroma down")
+
+    monkeypatch.setattr(rs, "_chroma_store", boom)
+    try:
+        rs.index_document(doc_id)
+    except Exception:
+        pass
+    else:
+        raise AssertionError("索引失败应当抛出异常")
+
+    with Session(eng) as s:
+        fresh = s.get(Document, doc_id)
+    assert fresh.indexed is False
+    assert fresh.chunk_count == 0
+    assert "向量化失败" in (fresh.index_error or "")
