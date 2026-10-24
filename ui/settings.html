@@ -128,6 +128,8 @@
               <input class="input" id="rr-api-model" placeholder="qwen3.7-text-rerank"></div>
             <div class="field"><label>精排候选数</label>
               <input class="input" id="rr-top-n" type="number" min="1" max="50" value="12"></div>
+            <div class="field"><label>低置信度阈值（0 = 不启用；低于它的检索结果不进入信源）</label>
+              <input class="input" id="rr-threshold" type="number" step="0.01" min="0" max="1" value="0"></div>
           </div>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
             <button class="btn sm" id="save-rerank">💾 保存</button>
@@ -248,6 +250,8 @@ async function load() {
   $('#rr-api-key').value = rr.api_key || '';
   $('#rr-api-model').value = rr.api_model || '';
   $('#rr-top-n').value = rr.api_top_n || 12;
+  const modelKey = (rr.mode === 'api' && rr.api_model) ? rr.api_model : 'BAAI/bge-reranker-v2-m3';
+  $('#rr-threshold').value = (rr.thresholds || {})[modelKey] || 0;
   toggleRrMode();
 
   const ov = await api('/overview');
@@ -415,6 +419,7 @@ function currentRerankPayload() {
     api_key: $('#rr-api-key').value.trim(),
     api_model: $('#rr-api-model').value.trim(),
     api_top_n: Number.isFinite(n) ? Math.min(50, Math.max(1, n)) : 12,
+    score_threshold: Math.max(0, parseFloat($('#rr-threshold').value) || 0),
   };
 }
 $('#save-rerank').onclick = async () => {

@@ -341,6 +341,7 @@ class RerankIn(BaseModel):
     api_key: str = ""
     api_model: str = ""
     api_top_n: int = 12
+    score_threshold: float = 0.0   # 0 = 不启用拒答阈值
 
 
 @router.put("/settings/rerank")
@@ -350,12 +351,20 @@ def put_rerank(body: RerankIn):
     if body.api_provider != "dashscope":
         raise HTTPException(400, "目前远程重排只支持 DashScope 原生协议")
     old = settings_store.get("rerank")
-    new_cfg = body.model_dump()
+    new_cfg = body.model_dump(exclude={"score_threshold"})
     if new_cfg["api_key"].startswith("•"):
         new_cfg["api_key"] = old.get("api_key", "")
-    settings_store.put("rerank", new_cfg, merge=False)
     from app.services import rerank
 
+    model_key = (new_cfg.get("api_model") if new_cfg.get("mode") == "api" and new_cfg.get("api_model")
+                 else rerank.DEFAULT_MODEL)
+    thresholds = dict(old.get("thresholds") or {})
+    if body.score_threshold > 0:
+        thresholds[model_key] = round(float(body.score_threshold), 4)
+    else:
+        thresholds.pop(model_key, None)
+    new_cfg["thresholds"] = thresholds
+    settings_store.put("rerank", new_cfg, merge=False)
     rerank.reset_api_state()
     return {"ok": True, "config": {**new_cfg, "api_key": _mask(new_cfg.get("api_key", ""))}}
 
