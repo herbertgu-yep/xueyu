@@ -1,625 +1,2277 @@
 [
   {
     "mode": "vector_only",
-    "hit_rate": 0.381,
-    "term_hit_rate": 0.4,
-    "colloquial_hit_rate": 0.364,
-    "p50_ms": 8.3,
+    "hit_rate": 0.225,
+    "term_hit_rate": 0.35,
+    "colloquial_hit_rate": 0.1,
+    "p50_ms": 8.8,
     "rows": [
       {
-        "q": "Transformer 的编码器和解码器是怎么配合工作的？",
-        "type": "term",
-        "expected": "attention-is-all-you-need",
-        "hit": false,
-        "top1": "vit"
-      },
-      {
-        "q": "机器翻译模型怎么同时记住句子的前后文？",
+        "q": "作者把每个并行小部分处理时的数值宽度设成了多少？",
         "type": "colloquial",
         "expected": "attention-is-all-you-need",
-        "hit": true,
-        "top1": "rag-lewis-2020"
+        "hit": false,
+        "top1": "palm-scaling"
       },
       {
-        "q": "BERT 预训练时的掩码策略具体是怎么做的？",
+        "q": "在 MultiHead(Q, K, V) 的公式中，多个 head 的输出通过什么方式组合？",
         "type": "term",
-        "expected": "bert",
+        "expected": "attention-is-all-you-need",
+        "hit": true,
+        "top1": "self-rag"
+      },
+      {
+        "q": "把模型做得更大，效果会怎样？",
+        "type": "colloquial",
+        "expected": "attention-is-all-you-need",
         "hit": false,
         "top1": "ddpm-ho"
       },
       {
-        "q": "把句子里的词遮住让模型猜，这种训练方法有什么好处？",
-        "type": "colloquial",
-        "expected": "bert",
+        "q": "片段中，减小注意力键维度 dk 会对模型质量产生什么影响？",
+        "type": "term",
+        "expected": "attention-is-all-you-need",
         "hit": false,
         "top1": "palm-scaling"
       },
       {
-        "q": "联邦学习客户端数据分布不一致会带来什么问题？",
-        "type": "term",
-        "expected": "fedavg-survey",
-        "hit": true,
-        "top1": "fedavg-survey"
-      },
-      {
-        "q": "很多台手机各自用本地数据训练模型再汇总，效果为什么不好？",
+        "q": "作者说，如果不继续训练调整，为什么 C 不能算有意义的句子表示？",
         "type": "colloquial",
-        "expected": "fedavg-survey",
-        "hit": true,
-        "top1": "fedavg-survey"
-      },
-      {
-        "q": "扩散模型的逆向去噪过程是如何逐步生成图像的？",
-        "type": "term",
-        "expected": "ddpm-ho",
+        "expected": "bert",
         "hit": false,
-        "top1": "hugginggpt"
+        "top1": "rag-lewis-2020"
       },
       {
-        "q": "AI 从一堆噪点里一步步画出图来的原理是什么？",
+        "q": "BERT 的最终模型在 NSP 任务上达到了多少准确率？",
+        "type": "term",
+        "expected": "bert",
+        "hit": false,
+        "top1": "bert"
+      },
+      {
+        "q": "2011 年有个测试机器懂不懂常识的挑战，它叫什么名字？",
         "type": "colloquial",
-        "expected": "ddpm-ho",
+        "expected": "bert",
         "hit": false,
-        "top1": "hugginggpt"
+        "top1": "rag-lewis-2020"
       },
       {
-        "q": "思维链提示为什么能提升大模型的数学推理准确率？",
+        "q": "Kiros 等人 2015 年发表在 NIPS 上的论文提出了哪种句子表示方法？",
         "type": "term",
-        "expected": "chain-of-thought-wei",
+        "expected": "bert",
         "hit": false,
         "top1": "graph-attention-review"
       },
       {
-        "q": "让模型一步一步想再给答案，为什么比直接给答案更准？",
+        "q": "What do ordinary prompts only give us about what big language models can do?",
         "type": "colloquial",
+        "expected": "chain-of-thought-wei",
+        "hit": false,
+        "top1": "bert"
+      },
+      {
+        "q": "What does chain-of-thought prompting facilitate for symbolic reasoning?",
+        "type": "term",
+        "expected": "chain-of-thought-wei",
+        "hit": true,
+        "top1": "chain-of-thought-wei"
+      },
+      {
+        "q": "如果只让模型列算式、不用日常语言解释，它还能做到什么？",
+        "type": "colloquial",
+        "expected": "chain-of-thought-wei",
+        "hit": false,
+        "top1": "ddpm-ho"
+      },
+      {
+        "q": "在算术推理中，“Equation only” 的表现介于哪两种提示方式之间？",
+        "type": "term",
         "expected": "chain-of-thought-wei",
         "hit": false,
         "top1": "palm-scaling"
       },
       {
-        "q": "Vision Transformer 如何把图像切分成序列输入？",
+        "q": "表格里空着没填的那些结果，会生成什么样的样本？",
+        "type": "colloquial",
+        "expected": "ddpm-ho",
+        "hit": false,
+        "top1": "palm-scaling"
+      },
+      {
+        "q": "Lsimple(θ) 中的时间步 t 服从什么分布？",
         "type": "term",
-        "expected": "vit",
+        "expected": "ddpm-ho",
+        "hit": false,
+        "top1": "ddpm-ho"
+      },
+      {
+        "q": "用这个模型一点点生成图片时，最先出现的是大轮廓还是小细节？",
+        "type": "colloquial",
+        "expected": "ddpm-ho",
         "hit": false,
         "top1": "hugginggpt"
       },
       {
-        "q": "不用卷积网络，把图片切成小块喂给 Transformer 效果怎么样？",
+        "q": "在Figure 7中，当以同一个latent为条件时，CelebA-HQ 256×256样本共享哪类属性？",
+        "type": "term",
+        "expected": "ddpm-ho",
+        "hit": false,
+        "top1": "hugginggpt"
+      },
+      {
+        "q": "大模型有时会突然在某些任务上表现变好，现在的研究能把原因完全说清楚吗？",
         "type": "colloquial",
-        "expected": "vit",
+        "expected": "emergent-abilities",
+        "hit": false,
+        "top1": "fedavg-survey"
+      },
+      {
+        "q": "本文在 BIG-Bench 上对 cross-entropy loss 的 scaling 进行了哪方面的分析？",
+        "type": "term",
+        "expected": "emergent-abilities",
+        "hit": false,
+        "top1": "gnn-robustness-at-scale"
+      },
+      {
+        "q": "哪篇论文讨论的是会说话的人工智能可能给社会带来哪些坏处？",
+        "type": "colloquial",
+        "expected": "emergent-abilities",
+        "hit": false,
+        "top1": "rag-lewis-2020"
+      },
+      {
+        "q": "PromptChainer 使用什么方式把大语言模型的提示串联起来？",
+        "type": "term",
+        "expected": "emergent-abilities",
+        "hit": false,
+        "top1": "palm-scaling"
+      },
+      {
+        "q": "每轮开始时，服务器会随机抽出一部分用户来参与，随机抽出的这部分被怎么描述？",
+        "type": "colloquial",
+        "expected": "fedavg-survey",
+        "hit": false,
+        "top1": "palm-scaling"
+      },
+      {
+        "q": "片段中，当各客户端数据划分不满足 IID 假设时，这种情形被称为什么？",
+        "type": "term",
+        "expected": "fedavg-survey",
+        "hit": false,
+        "top1": "fedavg-survey"
+      },
+      {
+        "q": "用莎士比亚作品构建语言建模数据时，最后一共产生了多少个参与方？",
+        "type": "colloquial",
+        "expected": "fedavg-survey",
+        "hit": false,
+        "top1": "palm-scaling"
+      },
+      {
+        "q": "在MNIST数据的Non-IID划分中，100个客户端各自被分配几个shard？",
+        "type": "term",
+        "expected": "fedavg-survey",
+        "hit": false,
+        "top1": "palm-scaling"
+      },
+      {
+        "q": "如果事先没有更多信息，攻击者一般会先挑哪类对象下手来拖低整体准确率？",
+        "type": "colloquial",
+        "expected": "gnn-robustness-at-scale",
+        "hit": false,
+        "top1": "gpt4-report"
+      },
+      {
+        "q": "对于全局攻击，代理损失在 ψ→0+ 处应当具有什么样的梯度？",
+        "type": "term",
+        "expected": "gnn-robustness-at-scale",
+        "hit": false,
+        "top1": "gnn-robustness-at-scale"
+      },
+      {
+        "q": "当只保留排名最靠前的一部分东西时，表里说 k 通常被当作什么来用？",
+        "type": "colloquial",
+        "expected": "gnn-robustness-at-scale",
+        "hit": false,
+        "top1": "graph-attention-review"
+      },
+      {
+        "q": "片段中，当 f(n)/g(n) 的极限小于无穷大时，可推出哪个渐近记号关系？",
+        "type": "term",
+        "expected": "gnn-robustness-at-scale",
+        "hit": false,
+        "top1": "ddpm-ho"
+      },
+      {
+        "q": "片段说，如果给 GPT-4 配上外部数据，它可能被拿来干什么？",
+        "type": "colloquial",
+        "expected": "gpt4-report",
+        "hit": true,
+        "top1": "gpt4-report"
+      },
+      {
+        "q": "片段中哪个术语指模型倾向于复述对话用户偏好的答案？",
+        "type": "term",
+        "expected": "gpt4-report",
+        "hit": false,
+        "top1": "emergent-abilities"
+      },
+      {
+        "q": "如果一条回应先说它要拒绝，但后面又继续给内容，按片段还算不算拒绝？",
+        "type": "colloquial",
+        "expected": "gpt4-report",
+        "hit": false,
+        "top1": "gpt4-report"
+      },
+      {
+        "q": "在 Non-erotic sexual content 的列举项中，第一项是什么？",
+        "type": "term",
+        "expected": "gpt4-report",
+        "hit": true,
+        "top1": "gpt4-report"
+      },
+      {
+        "q": "训练的时候，每个类别最多能放多少条数据进去？",
+        "type": "colloquial",
+        "expected": "graph-attention-review",
+        "hit": false,
+        "top1": "self-rag"
+      },
+      {
+        "q": "在 transductive learning 中，节点特征对应什么？",
+        "type": "term",
+        "expected": "graph-attention-review",
+        "hit": false,
+        "top1": "graph-attention-review"
+      },
+      {
+        "q": "2008年有一篇论文，讲的是把数据画成图来观察，这篇论文的标题是什么？",
+        "type": "colloquial",
+        "expected": "graph-attention-review",
+        "hit": false,
+        "top1": "graph-attention-review"
+      },
+      {
+        "q": "Scarselli 等人关于图神经网络模型的论文标题是什么？",
+        "type": "term",
+        "expected": "graph-attention-review",
+        "hit": true,
+        "top1": "graph-attention-review"
+      },
+      {
+        "q": "HuggingGPT 接到用户请求后，会先把请求怎么处理，好继续解决？",
+        "type": "colloquial",
+        "expected": "hugginggpt",
         "hit": true,
         "top1": "hugginggpt"
       },
       {
-        "q": "RAG 检索增强生成中参数化记忆与非参数化记忆是如何分工的？",
+        "q": "在 HuggingGPT 的 Model Selection 阶段，ChatGPT 依据什么来选择 Hugging Face 上托管的专家模型？",
+        "type": "term",
+        "expected": "hugginggpt",
+        "hit": true,
+        "top1": "hugginggpt"
+      },
+      {
+        "q": "那篇讲给文字生成图片的模型加额外控制条件的文章，网上编号是多少？",
+        "type": "colloquial",
+        "expected": "hugginggpt",
+        "hit": false,
+        "top1": "hugginggpt"
+      },
+      {
+        "q": "《Adding Conditional Control to Text-to-Image Diffusion Models》的 arXiv 编号是什么？",
+        "type": "term",
+        "expected": "hugginggpt",
+        "hit": false,
+        "top1": "hugginggpt"
+      },
+      {
+        "q": "为什么只让模型给出一个方案可能不够好？",
+        "type": "colloquial",
+        "expected": "llm-planning-survey",
+        "hit": false,
+        "top1": "ddpm-ho"
+      },
+      {
+        "q": "在 optimal plan selection 中，Self-consistency 采用哪种策略选择最优计划？",
+        "type": "term",
+        "expected": "llm-planning-survey",
+        "hit": true,
+        "top1": "llm-planning-survey"
+      },
+      {
+        "q": "为什么一些小型规划模型碰到复杂又不常见的问题时容易表现不好？",
+        "type": "colloquial",
+        "expected": "llm-planning-survey",
+        "hit": false,
+        "top1": "palm-scaling"
+      },
+      {
+        "q": "Neural planners 是使用哪些技术训练的深度模型？",
+        "type": "term",
+        "expected": "llm-planning-survey",
+        "hit": true,
+        "top1": "attention-is-all-you-need"
+      },
+      {
+        "q": "用自动工具筛掉“有毒”内容时，可能会不成比例地把谁写的内容排除掉？",
+        "type": "colloquial",
+        "expected": "palm-scaling",
+        "hit": false,
+        "top1": "palm-scaling"
+      },
+      {
+        "q": "片段建议在真实下游任务中使用 PaLM 时进行哪一类 fairness evaluation，以评估潜在危害？",
+        "type": "term",
+        "expected": "palm-scaling",
+        "hit": false,
+        "top1": "palm-scaling"
+      },
+      {
+        "q": "有一篇论文讲的是不用人工标注就能把一种编程语言转成另一种，这篇论文的标题是什么？",
+        "type": "colloquial",
+        "expected": "palm-scaling",
+        "hit": false,
+        "top1": "palm-scaling"
+      },
+      {
+        "q": "RACE 数据集的完整名称是什么？",
+        "type": "term",
+        "expected": "palm-scaling",
+        "hit": false,
+        "top1": "self-rag"
+      },
+      {
+        "q": "文中提到这类模型在记忆方面有什么不便？",
+        "type": "colloquial",
+        "expected": "rag-lewis-2020",
+        "hit": false,
+        "top1": "rag-lewis-2020"
+      },
+      {
+        "q": "在语言生成任务中，RAG 模型相比 state-of-the-art parametric-only seq2seq baseline 生成了什么样的语言？",
         "type": "term",
         "expected": "rag-lewis-2020",
         "hit": true,
         "top1": "rag-lewis-2020"
       },
       {
-        "q": "让大模型回答问题时先去资料库里查再答，这个流程是怎么运作的？",
+        "q": "哪篇文献研究的是在显卡上做超大规模的相似内容查找？",
         "type": "colloquial",
         "expected": "rag-lewis-2020",
         "hit": false,
-        "top1": "fedavg-survey"
+        "top1": "graph-attention-review"
       },
       {
-        "q": "Toolformer 如何自主决定调用哪个 API 工具？",
+        "q": "Hashimoto 等人的论文标题中出现了哪个由连字符连接的核心术语？",
         "type": "term",
-        "expected": "toolformer",
-        "hit": true,
-        "top1": "toolformer"
+        "expected": "rag-lewis-2020",
+        "hit": false,
+        "top1": "attention-is-all-you-need"
       },
       {
-        "q": "模型自己学会用计算器和搜索引擎查资料，这是怎么训练出来的？",
+        "q": "在这个房间场景里，你最终需要把什么厨房小瓶放到抽屉上？",
         "type": "colloquial",
-        "expected": "toolformer",
+        "expected": "react-yao-2022",
+        "hit": false,
+        "top1": "reflexion"
+      },
+      {
+        "q": "Figure 1 中比较了多少种 prompting methods？",
+        "type": "term",
+        "expected": "react-yao-2022",
         "hit": false,
         "top1": "fedavg-survey"
       },
       {
-        "q": "Reflexion 中语言反馈如何替代梯度信号实现自我改进？",
+        "q": "作者提醒，未来做更大规模实验前，研究人员应该先留意什么？",
+        "type": "colloquial",
+        "expected": "react-yao-2022",
+        "hit": true,
+        "top1": "graph-attention-review"
+      },
+      {
+        "q": "按照片段，models 在 WebShop 这一 research benchmark 上无法真正完成哪种行为？",
+        "type": "term",
+        "expected": "react-yao-2022",
+        "hit": false,
+        "top1": "hugginggpt"
+      },
+      {
+        "q": "每做完一次尝试，系统会把哪种经验写进记忆里，方便之后改进？",
+        "type": "colloquial",
+        "expected": "reflexion",
+        "hit": false,
+        "top1": "reflexion"
+      },
+      {
+        "q": "在 Reflexion 中，Self-Reflection model 分析 {τ0, r0} 后会产生什么？",
         "type": "term",
         "expected": "reflexion",
         "hit": true,
         "top1": "reflexion"
       },
       {
-        "q": "智能体做错了任务之后怎么记住教训下次不犯？",
+        "q": "在模型先写代码、再检查自己表现的例子里，代码实现之后紧接着列出的是什么？",
         "type": "colloquial",
+        "expected": "reflexion",
+        "hit": false,
+        "top1": "palm-scaling"
+      },
+      {
+        "q": "在 Reflexion 中，哪个消融示例对应 no Self-Reflection ablation？",
+        "type": "term",
         "expected": "reflexion",
         "hit": true,
         "top1": "reflexion"
       },
       {
-        "q": "参数量增大到什么程度会涌现出小模型不具备的能力？",
-        "type": "term",
-        "expected": "emergent-abilities",
-        "hit": false,
-        "top1": "palm-scaling"
-      },
-      {
-        "q": "为什么模型越大突然就会做以前完全不会的事？",
-        "type": "colloquial",
-        "expected": "emergent-abilities",
-        "hit": false,
-        "top1": "palm-scaling"
-      },
-      {
-        "q": "让模型自己判断什么时候该查资料、查到的靠不靠谱，这种做法叫什么？",
+        "q": "那些会先查外部资料再回答的普通模型，在健康问答和推理测试中，成绩比不查资料时明显变好了吗？",
         "type": "colloquial",
         "expected": "self-rag",
         "hit": false,
+        "top1": "fedavg-survey"
+      },
+      {
+        "q": "在写人物小传这类任务上，这个系统的7B和13B模型与那个反复提示大模型修改答案的方法相比，结果怎样？",
+        "type": "colloquial",
+        "expected": "self-rag",
+        "hit": false,
+        "top1": "ddpm-ho"
+      },
+      {
+        "q": "在 bio generation 任务上，SELF-RAG 的 7B 和 13B 模型超越了哪个并发方法？",
+        "type": "term",
+        "expected": "self-rag",
+        "hit": false,
+        "top1": "self-rag"
+      },
+      {
+        "q": "根据5.1 MAIN RESULTS，SELF-RAG在哪些任务上甚至优于ChatGPT？",
+        "type": "term",
+        "expected": "self-rag",
+        "hit": false,
+        "top1": "self-rag"
+      },
+      {
+        "q": "论文说，让语言模型会用搜索引擎、计算器或日历这类东西，是在赋予它什么本领？",
+        "type": "colloquial",
+        "expected": "toolformer",
+        "hit": false,
+        "top1": "hugginggpt"
+      },
+      {
+        "q": "Toolformer 希望工具使用通过哪种学习方式完成，以避免大量人工标注？",
+        "type": "term",
+        "expected": "toolformer",
+        "hit": false,
         "top1": "palm-scaling"
+      },
+      {
+        "q": "他们训练时一共用了多少块显卡？",
+        "type": "colloquial",
+        "expected": "toolformer",
+        "hit": false,
+        "top1": "self-rag"
+      },
+      {
+        "q": "Toolformer 训练中 effective batch size 是多少？",
+        "type": "term",
+        "expected": "toolformer",
+        "hit": false,
+        "top1": "palm-scaling"
+      },
+      {
+        "q": "如果愿意多花时间、资源和成本来换取更可靠的判断，系统会多次提示语言模型去汇总什么？",
+        "type": "colloquial",
+        "expected": "tree-of-thoughts",
+        "hit": false,
+        "top1": "hugginggpt"
+      },
+      {
+        "q": "在 ToT 框架中，BFS（Algorithm 1）每一步维护什么集合？",
+        "type": "term",
+        "expected": "tree-of-thoughts",
+        "hit": false,
+        "top1": "llm-planning-survey"
+      },
+      {
+        "q": "如果系统判断剩下的某个词根本填不出来，它会怎么处理当前这条搜索路径？",
+        "type": "colloquial",
+        "expected": "tree-of-thoughts",
+        "hit": false,
+        "top1": "palm-scaling"
+      },
+      {
+        "q": "在 Mini Crosswords 中，当某个剩余线索被认为无法填入时，DFS 会做什么？",
+        "type": "term",
+        "expected": "tree-of-thoughts",
+        "hit": true,
+        "top1": "tree-of-thoughts"
+      },
+      {
+        "q": "如果只用比较小的图片数据集来预训练，大号模型和小号模型比，表现会怎样？",
+        "type": "colloquial",
+        "expected": "vit",
+        "hit": true,
+        "top1": "vit"
+      },
+      {
+        "q": "在片段提到的三组预训练数据集中，ViT-Large 模型只有在哪个数据集上预训练时才体现出更大模型的全部优势？",
+        "type": "term",
+        "expected": "vit",
+        "hit": true,
+        "top1": "vit"
+      },
+      {
+        "q": "他们发现训练到多少步以后，再继续训练对最后效果的好处就变小了？",
+        "type": "colloquial",
+        "expected": "vit",
+        "hit": false,
+        "top1": "palm-scaling"
+      },
+      {
+        "q": "在 masked patch prediction 的预训练中，作者最终只报告哪一种 prediction target 的结果？",
+        "type": "term",
+        "expected": "vit",
+        "hit": true,
+        "top1": "vit"
+      },
+      {
+        "q": "把句子里的一些词遮住，再让模型猜回原来的词，这种做法的著名代表模型是什么？",
+        "type": "colloquial",
+        "expected": "xlnet",
+        "hit": false,
+        "top1": "rag-lewis-2020"
+      },
+      {
+        "q": "与 AR language modeling 不同，AE based pretraining 不进行哪一项估计，而是从损坏输入重建原始数据？",
+        "type": "term",
+        "expected": "xlnet",
+        "hit": true,
+        "top1": "xlnet"
+      },
+      {
+        "q": "Kudo 和 Richardson 做的那个把句子拆成小块的工具有个什么名字？",
+        "type": "colloquial",
+        "expected": "xlnet",
+        "hit": false,
+        "top1": "chain-of-thought-wei"
+      },
+      {
+        "q": "Kudo 和 Richardson 提出的 subword tokenizer 的名称是什么？",
+        "type": "term",
+        "expected": "xlnet",
+        "hit": false,
+        "top1": "bert"
       }
     ]
   },
   {
     "mode": "bm25_only",
-    "hit_rate": 0.381,
-    "term_hit_rate": 0.5,
-    "colloquial_hit_rate": 0.273,
-    "p50_ms": 4.3,
+    "hit_rate": 0.388,
+    "term_hit_rate": 0.75,
+    "colloquial_hit_rate": 0.025,
+    "p50_ms": 4.2,
     "rows": [
       {
-        "q": "Transformer 的编码器和解码器是怎么配合工作的？",
-        "type": "term",
+        "q": "作者把每个并行小部分处理时的数值宽度设成了多少？",
+        "type": "colloquial",
         "expected": "attention-is-all-you-need",
         "hit": false,
         "top1": "toolformer"
       },
       {
-        "q": "机器翻译模型怎么同时记住句子的前后文？",
-        "type": "colloquial",
+        "q": "在 MultiHead(Q, K, V) 的公式中，多个 head 的输出通过什么方式组合？",
+        "type": "term",
         "expected": "attention-is-all-you-need",
         "hit": true,
-        "top1": "toolformer"
+        "top1": "attention-is-all-you-need"
       },
       {
-        "q": "BERT 预训练时的掩码策略具体是怎么做的？",
-        "type": "term",
-        "expected": "bert",
-        "hit": true,
-        "top1": "xlnet"
-      },
-      {
-        "q": "把句子里的词遮住让模型猜，这种训练方法有什么好处？",
+        "q": "把模型做得更大，效果会怎样？",
         "type": "colloquial",
-        "expected": "bert",
-        "hit": false,
-        "top1": "toolformer"
-      },
-      {
-        "q": "联邦学习客户端数据分布不一致会带来什么问题？",
-        "type": "term",
-        "expected": "fedavg-survey",
+        "expected": "attention-is-all-you-need",
         "hit": false,
         "top1": "attention-is-all-you-need"
       },
       {
-        "q": "很多台手机各自用本地数据训练模型再汇总，效果为什么不好？",
-        "type": "colloquial",
-        "expected": "fedavg-survey",
+        "q": "片段中，减小注意力键维度 dk 会对模型质量产生什么影响？",
+        "type": "term",
+        "expected": "attention-is-all-you-need",
         "hit": false,
         "top1": "attention-is-all-you-need"
       },
       {
-        "q": "扩散模型的逆向去噪过程是如何逐步生成图像的？",
+        "q": "作者说，如果不继续训练调整，为什么 C 不能算有意义的句子表示？",
+        "type": "colloquial",
+        "expected": "bert",
+        "hit": false,
+        "top1": "gpt4-report"
+      },
+      {
+        "q": "BERT 的最终模型在 NSP 任务上达到了多少准确率？",
         "type": "term",
+        "expected": "bert",
+        "hit": true,
+        "top1": "bert"
+      },
+      {
+        "q": "2011 年有个测试机器懂不懂常识的挑战，它叫什么名字？",
+        "type": "colloquial",
+        "expected": "bert",
+        "hit": false,
+        "top1": "toolformer"
+      },
+      {
+        "q": "Kiros 等人 2015 年发表在 NIPS 上的论文提出了哪种句子表示方法？",
+        "type": "term",
+        "expected": "bert",
+        "hit": false,
+        "top1": "rag-lewis-2020"
+      },
+      {
+        "q": "What do ordinary prompts only give us about what big language models can do?",
+        "type": "colloquial",
+        "expected": "chain-of-thought-wei",
+        "hit": false,
+        "top1": "chain-of-thought-wei"
+      },
+      {
+        "q": "What does chain-of-thought prompting facilitate for symbolic reasoning?",
+        "type": "term",
+        "expected": "chain-of-thought-wei",
+        "hit": false,
+        "top1": "chain-of-thought-wei"
+      },
+      {
+        "q": "如果只让模型列算式、不用日常语言解释，它还能做到什么？",
+        "type": "colloquial",
+        "expected": "chain-of-thought-wei",
+        "hit": false,
+        "top1": "attention-is-all-you-need"
+      },
+      {
+        "q": "在算术推理中，“Equation only” 的表现介于哪两种提示方式之间？",
+        "type": "term",
+        "expected": "chain-of-thought-wei",
+        "hit": false,
+        "top1": "chain-of-thought-wei"
+      },
+      {
+        "q": "表格里空着没填的那些结果，会生成什么样的样本？",
+        "type": "colloquial",
         "expected": "ddpm-ho",
         "hit": false,
         "top1": "attention-is-all-you-need"
       },
       {
-        "q": "AI 从一堆噪点里一步步画出图来的原理是什么？",
+        "q": "Lsimple(θ) 中的时间步 t 服从什么分布？",
+        "type": "term",
+        "expected": "ddpm-ho",
+        "hit": true,
+        "top1": "ddpm-ho"
+      },
+      {
+        "q": "用这个模型一点点生成图片时，最先出现的是大轮廓还是小细节？",
         "type": "colloquial",
         "expected": "ddpm-ho",
+        "hit": false,
+        "top1": "attention-is-all-you-need"
+      },
+      {
+        "q": "在Figure 7中，当以同一个latent为条件时，CelebA-HQ 256×256样本共享哪类属性？",
+        "type": "term",
+        "expected": "ddpm-ho",
+        "hit": true,
+        "top1": "ddpm-ho"
+      },
+      {
+        "q": "大模型有时会突然在某些任务上表现变好，现在的研究能把原因完全说清楚吗？",
+        "type": "colloquial",
+        "expected": "emergent-abilities",
+        "hit": false,
+        "top1": "attention-is-all-you-need"
+      },
+      {
+        "q": "本文在 BIG-Bench 上对 cross-entropy loss 的 scaling 进行了哪方面的分析？",
+        "type": "term",
+        "expected": "emergent-abilities",
+        "hit": false,
+        "top1": "emergent-abilities"
+      },
+      {
+        "q": "哪篇论文讨论的是会说话的人工智能可能给社会带来哪些坏处？",
+        "type": "colloquial",
+        "expected": "emergent-abilities",
+        "hit": false,
+        "top1": "attention-is-all-you-need"
+      },
+      {
+        "q": "PromptChainer 使用什么方式把大语言模型的提示串联起来？",
+        "type": "term",
+        "expected": "emergent-abilities",
+        "hit": true,
+        "top1": "emergent-abilities"
+      },
+      {
+        "q": "每轮开始时，服务器会随机抽出一部分用户来参与，随机抽出的这部分被怎么描述？",
+        "type": "colloquial",
+        "expected": "fedavg-survey",
+        "hit": false,
+        "top1": "attention-is-all-you-need"
+      },
+      {
+        "q": "片段中，当各客户端数据划分不满足 IID 假设时，这种情形被称为什么？",
+        "type": "term",
+        "expected": "fedavg-survey",
+        "hit": false,
+        "top1": "toolformer"
+      },
+      {
+        "q": "用莎士比亚作品构建语言建模数据时，最后一共产生了多少个参与方？",
+        "type": "colloquial",
+        "expected": "fedavg-survey",
+        "hit": false,
+        "top1": "toolformer"
+      },
+      {
+        "q": "在MNIST数据的Non-IID划分中，100个客户端各自被分配几个shard？",
+        "type": "term",
+        "expected": "fedavg-survey",
+        "hit": true,
+        "top1": "fedavg-survey"
+      },
+      {
+        "q": "如果事先没有更多信息，攻击者一般会先挑哪类对象下手来拖低整体准确率？",
+        "type": "colloquial",
+        "expected": "gnn-robustness-at-scale",
+        "hit": false,
+        "top1": "attention-is-all-you-need"
+      },
+      {
+        "q": "对于全局攻击，代理损失在 ψ→0+ 处应当具有什么样的梯度？",
+        "type": "term",
+        "expected": "gnn-robustness-at-scale",
+        "hit": false,
+        "top1": "toolformer"
+      },
+      {
+        "q": "当只保留排名最靠前的一部分东西时，表里说 k 通常被当作什么来用？",
+        "type": "colloquial",
+        "expected": "gnn-robustness-at-scale",
+        "hit": false,
+        "top1": "gnn-robustness-at-scale"
+      },
+      {
+        "q": "片段中，当 f(n)/g(n) 的极限小于无穷大时，可推出哪个渐近记号关系？",
+        "type": "term",
+        "expected": "gnn-robustness-at-scale",
+        "hit": true,
+        "top1": "gnn-robustness-at-scale"
+      },
+      {
+        "q": "片段说，如果给 GPT-4 配上外部数据，它可能被拿来干什么？",
+        "type": "colloquial",
+        "expected": "gpt4-report",
+        "hit": false,
+        "top1": "gpt4-report"
+      },
+      {
+        "q": "片段中哪个术语指模型倾向于复述对话用户偏好的答案？",
+        "type": "term",
+        "expected": "gpt4-report",
+        "hit": false,
+        "top1": "attention-is-all-you-need"
+      },
+      {
+        "q": "如果一条回应先说它要拒绝，但后面又继续给内容，按片段还算不算拒绝？",
+        "type": "colloquial",
+        "expected": "gpt4-report",
+        "hit": false,
+        "top1": "attention-is-all-you-need"
+      },
+      {
+        "q": "在 Non-erotic sexual content 的列举项中，第一项是什么？",
+        "type": "term",
+        "expected": "gpt4-report",
+        "hit": true,
+        "top1": "gpt4-report"
+      },
+      {
+        "q": "训练的时候，每个类别最多能放多少条数据进去？",
+        "type": "colloquial",
+        "expected": "graph-attention-review",
+        "hit": false,
+        "top1": "attention-is-all-you-need"
+      },
+      {
+        "q": "在 transductive learning 中，节点特征对应什么？",
+        "type": "term",
+        "expected": "graph-attention-review",
+        "hit": true,
+        "top1": "graph-attention-review"
+      },
+      {
+        "q": "2008年有一篇论文，讲的是把数据画成图来观察，这篇论文的标题是什么？",
+        "type": "colloquial",
+        "expected": "graph-attention-review",
+        "hit": false,
+        "top1": "gpt4-report"
+      },
+      {
+        "q": "Scarselli 等人关于图神经网络模型的论文标题是什么？",
+        "type": "term",
+        "expected": "graph-attention-review",
+        "hit": true,
+        "top1": "graph-attention-review"
+      },
+      {
+        "q": "HuggingGPT 接到用户请求后，会先把请求怎么处理，好继续解决？",
+        "type": "colloquial",
+        "expected": "hugginggpt",
         "hit": false,
         "top1": "hugginggpt"
       },
       {
-        "q": "思维链提示为什么能提升大模型的数学推理准确率？",
+        "q": "在 HuggingGPT 的 Model Selection 阶段，ChatGPT 依据什么来选择 Hugging Face 上托管的专家模型？",
         "type": "term",
-        "expected": "chain-of-thought-wei",
+        "expected": "hugginggpt",
+        "hit": true,
+        "top1": "hugginggpt"
+      },
+      {
+        "q": "那篇讲给文字生成图片的模型加额外控制条件的文章，网上编号是多少？",
+        "type": "colloquial",
+        "expected": "hugginggpt",
         "hit": false,
         "top1": "attention-is-all-you-need"
       },
       {
-        "q": "让模型一步一步想再给答案，为什么比直接给答案更准？",
+        "q": "《Adding Conditional Control to Text-to-Image Diffusion Models》的 arXiv 编号是什么？",
+        "type": "term",
+        "expected": "hugginggpt",
+        "hit": true,
+        "top1": "hugginggpt"
+      },
+      {
+        "q": "为什么只让模型给出一个方案可能不够好？",
         "type": "colloquial",
-        "expected": "chain-of-thought-wei",
+        "expected": "llm-planning-survey",
         "hit": false,
         "top1": "attention-is-all-you-need"
       },
       {
-        "q": "Vision Transformer 如何把图像切分成序列输入？",
+        "q": "在 optimal plan selection 中，Self-consistency 采用哪种策略选择最优计划？",
         "type": "term",
-        "expected": "vit",
+        "expected": "llm-planning-survey",
         "hit": true,
-        "top1": "vit"
+        "top1": "llm-planning-survey"
       },
       {
-        "q": "不用卷积网络，把图片切成小块喂给 Transformer 效果怎么样？",
+        "q": "为什么一些小型规划模型碰到复杂又不常见的问题时容易表现不好？",
         "type": "colloquial",
-        "expected": "vit",
-        "hit": true,
-        "top1": "vit"
+        "expected": "llm-planning-survey",
+        "hit": false,
+        "top1": "attention-is-all-you-need"
       },
       {
-        "q": "RAG 检索增强生成中参数化记忆与非参数化记忆是如何分工的？",
+        "q": "Neural planners 是使用哪些技术训练的深度模型？",
+        "type": "term",
+        "expected": "llm-planning-survey",
+        "hit": true,
+        "top1": "llm-planning-survey"
+      },
+      {
+        "q": "用自动工具筛掉“有毒”内容时，可能会不成比例地把谁写的内容排除掉？",
+        "type": "colloquial",
+        "expected": "palm-scaling",
+        "hit": false,
+        "top1": "attention-is-all-you-need"
+      },
+      {
+        "q": "片段建议在真实下游任务中使用 PaLM 时进行哪一类 fairness evaluation，以评估潜在危害？",
+        "type": "term",
+        "expected": "palm-scaling",
+        "hit": true,
+        "top1": "palm-scaling"
+      },
+      {
+        "q": "有一篇论文讲的是不用人工标注就能把一种编程语言转成另一种，这篇论文的标题是什么？",
+        "type": "colloquial",
+        "expected": "palm-scaling",
+        "hit": false,
+        "top1": "attention-is-all-you-need"
+      },
+      {
+        "q": "RACE 数据集的完整名称是什么？",
+        "type": "term",
+        "expected": "palm-scaling",
+        "hit": false,
+        "top1": "gpt4-report"
+      },
+      {
+        "q": "文中提到这类模型在记忆方面有什么不便？",
+        "type": "colloquial",
+        "expected": "rag-lewis-2020",
+        "hit": false,
+        "top1": "attention-is-all-you-need"
+      },
+      {
+        "q": "在语言生成任务中，RAG 模型相比 state-of-the-art parametric-only seq2seq baseline 生成了什么样的语言？",
         "type": "term",
         "expected": "rag-lewis-2020",
         "hit": true,
         "top1": "rag-lewis-2020"
       },
       {
-        "q": "让大模型回答问题时先去资料库里查再答，这个流程是怎么运作的？",
+        "q": "哪篇文献研究的是在显卡上做超大规模的相似内容查找？",
         "type": "colloquial",
         "expected": "rag-lewis-2020",
         "hit": false,
         "top1": "attention-is-all-you-need"
       },
       {
-        "q": "Toolformer 如何自主决定调用哪个 API 工具？",
+        "q": "Hashimoto 等人的论文标题中出现了哪个由连字符连接的核心术语？",
         "type": "term",
-        "expected": "toolformer",
+        "expected": "rag-lewis-2020",
         "hit": true,
-        "top1": "toolformer"
+        "top1": "rag-lewis-2020"
       },
       {
-        "q": "模型自己学会用计算器和搜索引擎查资料，这是怎么训练出来的？",
+        "q": "在这个房间场景里，你最终需要把什么厨房小瓶放到抽屉上？",
         "type": "colloquial",
-        "expected": "toolformer",
-        "hit": true,
+        "expected": "react-yao-2022",
+        "hit": false,
         "top1": "toolformer"
       },
       {
-        "q": "Reflexion 中语言反馈如何替代梯度信号实现自我改进？",
+        "q": "Figure 1 中比较了多少种 prompting methods？",
+        "type": "term",
+        "expected": "react-yao-2022",
+        "hit": true,
+        "top1": "react-yao-2022"
+      },
+      {
+        "q": "作者提醒，未来做更大规模实验前，研究人员应该先留意什么？",
+        "type": "colloquial",
+        "expected": "react-yao-2022",
+        "hit": false,
+        "top1": "attention-is-all-you-need"
+      },
+      {
+        "q": "按照片段，models 在 WebShop 这一 research benchmark 上无法真正完成哪种行为？",
+        "type": "term",
+        "expected": "react-yao-2022",
+        "hit": true,
+        "top1": "react-yao-2022"
+      },
+      {
+        "q": "每做完一次尝试，系统会把哪种经验写进记忆里，方便之后改进？",
+        "type": "colloquial",
+        "expected": "reflexion",
+        "hit": false,
+        "top1": "attention-is-all-you-need"
+      },
+      {
+        "q": "在 Reflexion 中，Self-Reflection model 分析 {τ0, r0} 后会产生什么？",
         "type": "term",
         "expected": "reflexion",
         "hit": true,
         "top1": "reflexion"
       },
       {
-        "q": "智能体做错了任务之后怎么记住教训下次不犯？",
+        "q": "在模型先写代码、再检查自己表现的例子里，代码实现之后紧接着列出的是什么？",
         "type": "colloquial",
         "expected": "reflexion",
+        "hit": false,
+        "top1": "attention-is-all-you-need"
+      },
+      {
+        "q": "在 Reflexion 中，哪个消融示例对应 no Self-Reflection ablation？",
+        "type": "term",
+        "expected": "reflexion",
+        "hit": true,
+        "top1": "reflexion"
+      },
+      {
+        "q": "那些会先查外部资料再回答的普通模型，在健康问答和推理测试中，成绩比不查资料时明显变好了吗？",
+        "type": "colloquial",
+        "expected": "self-rag",
         "hit": false,
         "top1": "toolformer"
       },
       {
-        "q": "参数量增大到什么程度会涌现出小模型不具备的能力？",
-        "type": "term",
-        "expected": "emergent-abilities",
-        "hit": false,
-        "top1": "attention-is-all-you-need"
-      },
-      {
-        "q": "为什么模型越大突然就会做以前完全不会的事？",
-        "type": "colloquial",
-        "expected": "emergent-abilities",
-        "hit": false,
-        "top1": "attention-is-all-you-need"
-      },
-      {
-        "q": "让模型自己判断什么时候该查资料、查到的靠不靠谱，这种做法叫什么？",
+        "q": "在写人物小传这类任务上，这个系统的7B和13B模型与那个反复提示大模型修改答案的方法相比，结果怎样？",
         "type": "colloquial",
         "expected": "self-rag",
         "hit": false,
+        "top1": "self-rag"
+      },
+      {
+        "q": "在 bio generation 任务上，SELF-RAG 的 7B 和 13B 模型超越了哪个并发方法？",
+        "type": "term",
+        "expected": "self-rag",
+        "hit": true,
+        "top1": "self-rag"
+      },
+      {
+        "q": "根据5.1 MAIN RESULTS，SELF-RAG在哪些任务上甚至优于ChatGPT？",
+        "type": "term",
+        "expected": "self-rag",
+        "hit": true,
+        "top1": "self-rag"
+      },
+      {
+        "q": "论文说，让语言模型会用搜索引擎、计算器或日历这类东西，是在赋予它什么本领？",
+        "type": "colloquial",
+        "expected": "toolformer",
+        "hit": false,
+        "top1": "toolformer"
+      },
+      {
+        "q": "Toolformer 希望工具使用通过哪种学习方式完成，以避免大量人工标注？",
+        "type": "term",
+        "expected": "toolformer",
+        "hit": false,
+        "top1": "toolformer"
+      },
+      {
+        "q": "他们训练时一共用了多少块显卡？",
+        "type": "colloquial",
+        "expected": "toolformer",
+        "hit": false,
         "top1": "attention-is-all-you-need"
+      },
+      {
+        "q": "Toolformer 训练中 effective batch size 是多少？",
+        "type": "term",
+        "expected": "toolformer",
+        "hit": true,
+        "top1": "toolformer"
+      },
+      {
+        "q": "如果愿意多花时间、资源和成本来换取更可靠的判断，系统会多次提示语言模型去汇总什么？",
+        "type": "colloquial",
+        "expected": "tree-of-thoughts",
+        "hit": false,
+        "top1": "toolformer"
+      },
+      {
+        "q": "在 ToT 框架中，BFS（Algorithm 1）每一步维护什么集合？",
+        "type": "term",
+        "expected": "tree-of-thoughts",
+        "hit": true,
+        "top1": "tree-of-thoughts"
+      },
+      {
+        "q": "如果系统判断剩下的某个词根本填不出来，它会怎么处理当前这条搜索路径？",
+        "type": "colloquial",
+        "expected": "tree-of-thoughts",
+        "hit": false,
+        "top1": "attention-is-all-you-need"
+      },
+      {
+        "q": "在 Mini Crosswords 中，当某个剩余线索被认为无法填入时，DFS 会做什么？",
+        "type": "term",
+        "expected": "tree-of-thoughts",
+        "hit": true,
+        "top1": "tree-of-thoughts"
+      },
+      {
+        "q": "如果只用比较小的图片数据集来预训练，大号模型和小号模型比，表现会怎样？",
+        "type": "colloquial",
+        "expected": "vit",
+        "hit": false,
+        "top1": "toolformer"
+      },
+      {
+        "q": "在片段提到的三组预训练数据集中，ViT-Large 模型只有在哪个数据集上预训练时才体现出更大模型的全部优势？",
+        "type": "term",
+        "expected": "vit",
+        "hit": true,
+        "top1": "vit"
+      },
+      {
+        "q": "他们发现训练到多少步以后，再继续训练对最后效果的好处就变小了？",
+        "type": "colloquial",
+        "expected": "vit",
+        "hit": false,
+        "top1": "attention-is-all-you-need"
+      },
+      {
+        "q": "在 masked patch prediction 的预训练中，作者最终只报告哪一种 prediction target 的结果？",
+        "type": "term",
+        "expected": "vit",
+        "hit": true,
+        "top1": "vit"
+      },
+      {
+        "q": "把句子里的一些词遮住，再让模型猜回原来的词，这种做法的著名代表模型是什么？",
+        "type": "colloquial",
+        "expected": "xlnet",
+        "hit": false,
+        "top1": "toolformer"
+      },
+      {
+        "q": "与 AR language modeling 不同，AE based pretraining 不进行哪一项估计，而是从损坏输入重建原始数据？",
+        "type": "term",
+        "expected": "xlnet",
+        "hit": true,
+        "top1": "xlnet"
+      },
+      {
+        "q": "Kudo 和 Richardson 做的那个把句子拆成小块的工具有个什么名字？",
+        "type": "colloquial",
+        "expected": "xlnet",
+        "hit": true,
+        "top1": "xlnet"
+      },
+      {
+        "q": "Kudo 和 Richardson 提出的 subword tokenizer 的名称是什么？",
+        "type": "term",
+        "expected": "xlnet",
+        "hit": true,
+        "top1": "xlnet"
       }
     ]
   },
   {
     "mode": "hybrid_rrf",
-    "hit_rate": 0.476,
-    "term_hit_rate": 0.5,
-    "colloquial_hit_rate": 0.455,
-    "p50_ms": 14.4,
+    "hit_rate": 0.425,
+    "term_hit_rate": 0.725,
+    "colloquial_hit_rate": 0.125,
+    "p50_ms": 14.8,
     "rows": [
       {
-        "q": "Transformer 的编码器和解码器是怎么配合工作的？",
-        "type": "term",
-        "expected": "attention-is-all-you-need",
-        "hit": false,
-        "top1": "vit"
-      },
-      {
-        "q": "机器翻译模型怎么同时记住句子的前后文？",
+        "q": "作者把每个并行小部分处理时的数值宽度设成了多少？",
         "type": "colloquial",
         "expected": "attention-is-all-you-need",
-        "hit": true,
-        "top1": "rag-lewis-2020"
-      },
-      {
-        "q": "BERT 预训练时的掩码策略具体是怎么做的？",
-        "type": "term",
-        "expected": "bert",
-        "hit": false,
-        "top1": "ddpm-ho"
-      },
-      {
-        "q": "把句子里的词遮住让模型猜，这种训练方法有什么好处？",
-        "type": "colloquial",
-        "expected": "bert",
         "hit": false,
         "top1": "palm-scaling"
       },
       {
-        "q": "联邦学习客户端数据分布不一致会带来什么问题？",
+        "q": "在 MultiHead(Q, K, V) 的公式中，多个 head 的输出通过什么方式组合？",
         "type": "term",
-        "expected": "fedavg-survey",
-        "hit": true,
-        "top1": "fedavg-survey"
-      },
-      {
-        "q": "很多台手机各自用本地数据训练模型再汇总，效果为什么不好？",
-        "type": "colloquial",
-        "expected": "fedavg-survey",
-        "hit": true,
-        "top1": "fedavg-survey"
-      },
-      {
-        "q": "扩散模型的逆向去噪过程是如何逐步生成图像的？",
-        "type": "term",
-        "expected": "ddpm-ho",
-        "hit": false,
-        "top1": "hugginggpt"
-      },
-      {
-        "q": "AI 从一堆噪点里一步步画出图来的原理是什么？",
-        "type": "colloquial",
-        "expected": "ddpm-ho",
-        "hit": false,
-        "top1": "hugginggpt"
-      },
-      {
-        "q": "思维链提示为什么能提升大模型的数学推理准确率？",
-        "type": "term",
-        "expected": "chain-of-thought-wei",
-        "hit": false,
-        "top1": "graph-attention-review"
-      },
-      {
-        "q": "让模型一步一步想再给答案，为什么比直接给答案更准？",
-        "type": "colloquial",
-        "expected": "chain-of-thought-wei",
-        "hit": false,
-        "top1": "palm-scaling"
-      },
-      {
-        "q": "Vision Transformer 如何把图像切分成序列输入？",
-        "type": "term",
-        "expected": "vit",
-        "hit": true,
-        "top1": "hugginggpt"
-      },
-      {
-        "q": "不用卷积网络，把图片切成小块喂给 Transformer 效果怎么样？",
-        "type": "colloquial",
-        "expected": "vit",
-        "hit": true,
-        "top1": "hugginggpt"
-      },
-      {
-        "q": "RAG 检索增强生成中参数化记忆与非参数化记忆是如何分工的？",
-        "type": "term",
-        "expected": "rag-lewis-2020",
-        "hit": true,
-        "top1": "rag-lewis-2020"
-      },
-      {
-        "q": "让大模型回答问题时先去资料库里查再答，这个流程是怎么运作的？",
-        "type": "colloquial",
-        "expected": "rag-lewis-2020",
-        "hit": false,
-        "top1": "fedavg-survey"
-      },
-      {
-        "q": "Toolformer 如何自主决定调用哪个 API 工具？",
-        "type": "term",
-        "expected": "toolformer",
-        "hit": true,
-        "top1": "toolformer"
-      },
-      {
-        "q": "模型自己学会用计算器和搜索引擎查资料，这是怎么训练出来的？",
-        "type": "colloquial",
-        "expected": "toolformer",
-        "hit": true,
-        "top1": "fedavg-survey"
-      },
-      {
-        "q": "Reflexion 中语言反馈如何替代梯度信号实现自我改进？",
-        "type": "term",
-        "expected": "reflexion",
-        "hit": true,
-        "top1": "reflexion"
-      },
-      {
-        "q": "智能体做错了任务之后怎么记住教训下次不犯？",
-        "type": "colloquial",
-        "expected": "reflexion",
-        "hit": true,
-        "top1": "reflexion"
-      },
-      {
-        "q": "参数量增大到什么程度会涌现出小模型不具备的能力？",
-        "type": "term",
-        "expected": "emergent-abilities",
-        "hit": false,
-        "top1": "palm-scaling"
-      },
-      {
-        "q": "为什么模型越大突然就会做以前完全不会的事？",
-        "type": "colloquial",
-        "expected": "emergent-abilities",
-        "hit": false,
-        "top1": "palm-scaling"
-      },
-      {
-        "q": "让模型自己判断什么时候该查资料、查到的靠不靠谱，这种做法叫什么？",
-        "type": "colloquial",
-        "expected": "self-rag",
-        "hit": false,
-        "top1": "palm-scaling"
-      }
-    ]
-  },
-  {
-    "mode": "hybrid_full",
-    "hit_rate": 0.952,
-    "term_hit_rate": 1.0,
-    "colloquial_hit_rate": 0.909,
-    "p50_ms": 3920.7,
-    "rows": [
-      {
-        "q": "Transformer 的编码器和解码器是怎么配合工作的？",
-        "type": "term",
-        "expected": "attention-is-all-you-need",
-        "hit": true,
-        "top1": "vit"
-      },
-      {
-        "q": "机器翻译模型怎么同时记住句子的前后文？",
-        "type": "colloquial",
         "expected": "attention-is-all-you-need",
         "hit": true,
         "top1": "attention-is-all-you-need"
       },
       {
-        "q": "BERT 预训练时的掩码策略具体是怎么做的？",
+        "q": "把模型做得更大，效果会怎样？",
+        "type": "colloquial",
+        "expected": "attention-is-all-you-need",
+        "hit": false,
+        "top1": "ddpm-ho"
+      },
+      {
+        "q": "片段中，减小注意力键维度 dk 会对模型质量产生什么影响？",
+        "type": "term",
+        "expected": "attention-is-all-you-need",
+        "hit": false,
+        "top1": "palm-scaling"
+      },
+      {
+        "q": "作者说，如果不继续训练调整，为什么 C 不能算有意义的句子表示？",
+        "type": "colloquial",
+        "expected": "bert",
+        "hit": false,
+        "top1": "rag-lewis-2020"
+      },
+      {
+        "q": "BERT 的最终模型在 NSP 任务上达到了多少准确率？",
         "type": "term",
         "expected": "bert",
         "hit": true,
         "top1": "bert"
       },
       {
-        "q": "把句子里的词遮住让模型猜，这种训练方法有什么好处？",
+        "q": "2011 年有个测试机器懂不懂常识的挑战，它叫什么名字？",
         "type": "colloquial",
         "expected": "bert",
-        "hit": true,
+        "hit": false,
+        "top1": "rag-lewis-2020"
+      },
+      {
+        "q": "Kiros 等人 2015 年发表在 NIPS 上的论文提出了哪种句子表示方法？",
+        "type": "term",
+        "expected": "bert",
+        "hit": false,
+        "top1": "graph-attention-review"
+      },
+      {
+        "q": "What do ordinary prompts only give us about what big language models can do?",
+        "type": "colloquial",
+        "expected": "chain-of-thought-wei",
+        "hit": false,
         "top1": "bert"
       },
       {
-        "q": "联邦学习客户端数据分布不一致会带来什么问题？",
+        "q": "What does chain-of-thought prompting facilitate for symbolic reasoning?",
         "type": "term",
-        "expected": "fedavg-survey",
+        "expected": "chain-of-thought-wei",
         "hit": true,
-        "top1": "fedavg-survey"
+        "top1": "chain-of-thought-wei"
       },
       {
-        "q": "很多台手机各自用本地数据训练模型再汇总，效果为什么不好？",
+        "q": "如果只让模型列算式、不用日常语言解释，它还能做到什么？",
         "type": "colloquial",
-        "expected": "fedavg-survey",
-        "hit": true,
-        "top1": "fedavg-survey"
+        "expected": "chain-of-thought-wei",
+        "hit": false,
+        "top1": "ddpm-ho"
       },
       {
-        "q": "扩散模型的逆向去噪过程是如何逐步生成图像的？",
+        "q": "在算术推理中，“Equation only” 的表现介于哪两种提示方式之间？",
+        "type": "term",
+        "expected": "chain-of-thought-wei",
+        "hit": false,
+        "top1": "palm-scaling"
+      },
+      {
+        "q": "表格里空着没填的那些结果，会生成什么样的样本？",
+        "type": "colloquial",
+        "expected": "ddpm-ho",
+        "hit": false,
+        "top1": "palm-scaling"
+      },
+      {
+        "q": "Lsimple(θ) 中的时间步 t 服从什么分布？",
         "type": "term",
         "expected": "ddpm-ho",
         "hit": true,
         "top1": "ddpm-ho"
       },
       {
-        "q": "AI 从一堆噪点里一步步画出图来的原理是什么？",
+        "q": "用这个模型一点点生成图片时，最先出现的是大轮廓还是小细节？",
         "type": "colloquial",
         "expected": "ddpm-ho",
         "hit": false,
         "top1": "hugginggpt"
       },
       {
-        "q": "思维链提示为什么能提升大模型的数学推理准确率？",
+        "q": "在Figure 7中，当以同一个latent为条件时，CelebA-HQ 256×256样本共享哪类属性？",
         "type": "term",
-        "expected": "chain-of-thought-wei",
+        "expected": "ddpm-ho",
         "hit": true,
-        "top1": "chain-of-thought-wei"
+        "top1": "hugginggpt"
       },
       {
-        "q": "让模型一步一步想再给答案，为什么比直接给答案更准？",
+        "q": "大模型有时会突然在某些任务上表现变好，现在的研究能把原因完全说清楚吗？",
         "type": "colloquial",
-        "expected": "chain-of-thought-wei",
-        "hit": true,
-        "top1": "chain-of-thought-wei"
+        "expected": "emergent-abilities",
+        "hit": false,
+        "top1": "fedavg-survey"
       },
       {
-        "q": "Vision Transformer 如何把图像切分成序列输入？",
+        "q": "本文在 BIG-Bench 上对 cross-entropy loss 的 scaling 进行了哪方面的分析？",
         "type": "term",
-        "expected": "vit",
-        "hit": true,
-        "top1": "vit"
+        "expected": "emergent-abilities",
+        "hit": false,
+        "top1": "gnn-robustness-at-scale"
       },
       {
-        "q": "不用卷积网络，把图片切成小块喂给 Transformer 效果怎么样？",
+        "q": "哪篇论文讨论的是会说话的人工智能可能给社会带来哪些坏处？",
         "type": "colloquial",
-        "expected": "vit",
-        "hit": true,
-        "top1": "vit"
+        "expected": "emergent-abilities",
+        "hit": false,
+        "top1": "rag-lewis-2020"
       },
       {
-        "q": "RAG 检索增强生成中参数化记忆与非参数化记忆是如何分工的？",
+        "q": "PromptChainer 使用什么方式把大语言模型的提示串联起来？",
+        "type": "term",
+        "expected": "emergent-abilities",
+        "hit": true,
+        "top1": "palm-scaling"
+      },
+      {
+        "q": "每轮开始时，服务器会随机抽出一部分用户来参与，随机抽出的这部分被怎么描述？",
+        "type": "colloquial",
+        "expected": "fedavg-survey",
+        "hit": false,
+        "top1": "palm-scaling"
+      },
+      {
+        "q": "片段中，当各客户端数据划分不满足 IID 假设时，这种情形被称为什么？",
+        "type": "term",
+        "expected": "fedavg-survey",
+        "hit": false,
+        "top1": "fedavg-survey"
+      },
+      {
+        "q": "用莎士比亚作品构建语言建模数据时，最后一共产生了多少个参与方？",
+        "type": "colloquial",
+        "expected": "fedavg-survey",
+        "hit": false,
+        "top1": "palm-scaling"
+      },
+      {
+        "q": "在MNIST数据的Non-IID划分中，100个客户端各自被分配几个shard？",
+        "type": "term",
+        "expected": "fedavg-survey",
+        "hit": false,
+        "top1": "fedavg-survey"
+      },
+      {
+        "q": "如果事先没有更多信息，攻击者一般会先挑哪类对象下手来拖低整体准确率？",
+        "type": "colloquial",
+        "expected": "gnn-robustness-at-scale",
+        "hit": false,
+        "top1": "gpt4-report"
+      },
+      {
+        "q": "对于全局攻击，代理损失在 ψ→0+ 处应当具有什么样的梯度？",
+        "type": "term",
+        "expected": "gnn-robustness-at-scale",
+        "hit": false,
+        "top1": "gnn-robustness-at-scale"
+      },
+      {
+        "q": "当只保留排名最靠前的一部分东西时，表里说 k 通常被当作什么来用？",
+        "type": "colloquial",
+        "expected": "gnn-robustness-at-scale",
+        "hit": false,
+        "top1": "graph-attention-review"
+      },
+      {
+        "q": "片段中，当 f(n)/g(n) 的极限小于无穷大时，可推出哪个渐近记号关系？",
+        "type": "term",
+        "expected": "gnn-robustness-at-scale",
+        "hit": true,
+        "top1": "ddpm-ho"
+      },
+      {
+        "q": "片段说，如果给 GPT-4 配上外部数据，它可能被拿来干什么？",
+        "type": "colloquial",
+        "expected": "gpt4-report",
+        "hit": true,
+        "top1": "gpt4-report"
+      },
+      {
+        "q": "片段中哪个术语指模型倾向于复述对话用户偏好的答案？",
+        "type": "term",
+        "expected": "gpt4-report",
+        "hit": false,
+        "top1": "emergent-abilities"
+      },
+      {
+        "q": "如果一条回应先说它要拒绝，但后面又继续给内容，按片段还算不算拒绝？",
+        "type": "colloquial",
+        "expected": "gpt4-report",
+        "hit": false,
+        "top1": "gpt4-report"
+      },
+      {
+        "q": "在 Non-erotic sexual content 的列举项中，第一项是什么？",
+        "type": "term",
+        "expected": "gpt4-report",
+        "hit": true,
+        "top1": "gpt4-report"
+      },
+      {
+        "q": "训练的时候，每个类别最多能放多少条数据进去？",
+        "type": "colloquial",
+        "expected": "graph-attention-review",
+        "hit": false,
+        "top1": "self-rag"
+      },
+      {
+        "q": "在 transductive learning 中，节点特征对应什么？",
+        "type": "term",
+        "expected": "graph-attention-review",
+        "hit": true,
+        "top1": "graph-attention-review"
+      },
+      {
+        "q": "2008年有一篇论文，讲的是把数据画成图来观察，这篇论文的标题是什么？",
+        "type": "colloquial",
+        "expected": "graph-attention-review",
+        "hit": false,
+        "top1": "graph-attention-review"
+      },
+      {
+        "q": "Scarselli 等人关于图神经网络模型的论文标题是什么？",
+        "type": "term",
+        "expected": "graph-attention-review",
+        "hit": true,
+        "top1": "graph-attention-review"
+      },
+      {
+        "q": "HuggingGPT 接到用户请求后，会先把请求怎么处理，好继续解决？",
+        "type": "colloquial",
+        "expected": "hugginggpt",
+        "hit": true,
+        "top1": "hugginggpt"
+      },
+      {
+        "q": "在 HuggingGPT 的 Model Selection 阶段，ChatGPT 依据什么来选择 Hugging Face 上托管的专家模型？",
+        "type": "term",
+        "expected": "hugginggpt",
+        "hit": true,
+        "top1": "hugginggpt"
+      },
+      {
+        "q": "那篇讲给文字生成图片的模型加额外控制条件的文章，网上编号是多少？",
+        "type": "colloquial",
+        "expected": "hugginggpt",
+        "hit": false,
+        "top1": "hugginggpt"
+      },
+      {
+        "q": "《Adding Conditional Control to Text-to-Image Diffusion Models》的 arXiv 编号是什么？",
+        "type": "term",
+        "expected": "hugginggpt",
+        "hit": true,
+        "top1": "hugginggpt"
+      },
+      {
+        "q": "为什么只让模型给出一个方案可能不够好？",
+        "type": "colloquial",
+        "expected": "llm-planning-survey",
+        "hit": false,
+        "top1": "ddpm-ho"
+      },
+      {
+        "q": "在 optimal plan selection 中，Self-consistency 采用哪种策略选择最优计划？",
+        "type": "term",
+        "expected": "llm-planning-survey",
+        "hit": true,
+        "top1": "llm-planning-survey"
+      },
+      {
+        "q": "为什么一些小型规划模型碰到复杂又不常见的问题时容易表现不好？",
+        "type": "colloquial",
+        "expected": "llm-planning-survey",
+        "hit": false,
+        "top1": "palm-scaling"
+      },
+      {
+        "q": "Neural planners 是使用哪些技术训练的深度模型？",
+        "type": "term",
+        "expected": "llm-planning-survey",
+        "hit": true,
+        "top1": "llm-planning-survey"
+      },
+      {
+        "q": "用自动工具筛掉“有毒”内容时，可能会不成比例地把谁写的内容排除掉？",
+        "type": "colloquial",
+        "expected": "palm-scaling",
+        "hit": false,
+        "top1": "palm-scaling"
+      },
+      {
+        "q": "片段建议在真实下游任务中使用 PaLM 时进行哪一类 fairness evaluation，以评估潜在危害？",
+        "type": "term",
+        "expected": "palm-scaling",
+        "hit": true,
+        "top1": "palm-scaling"
+      },
+      {
+        "q": "有一篇论文讲的是不用人工标注就能把一种编程语言转成另一种，这篇论文的标题是什么？",
+        "type": "colloquial",
+        "expected": "palm-scaling",
+        "hit": false,
+        "top1": "palm-scaling"
+      },
+      {
+        "q": "RACE 数据集的完整名称是什么？",
+        "type": "term",
+        "expected": "palm-scaling",
+        "hit": false,
+        "top1": "self-rag"
+      },
+      {
+        "q": "文中提到这类模型在记忆方面有什么不便？",
+        "type": "colloquial",
+        "expected": "rag-lewis-2020",
+        "hit": false,
+        "top1": "rag-lewis-2020"
+      },
+      {
+        "q": "在语言生成任务中，RAG 模型相比 state-of-the-art parametric-only seq2seq baseline 生成了什么样的语言？",
         "type": "term",
         "expected": "rag-lewis-2020",
         "hit": true,
         "top1": "rag-lewis-2020"
       },
       {
-        "q": "让大模型回答问题时先去资料库里查再答，这个流程是怎么运作的？",
+        "q": "哪篇文献研究的是在显卡上做超大规模的相似内容查找？",
         "type": "colloquial",
         "expected": "rag-lewis-2020",
+        "hit": false,
+        "top1": "graph-attention-review"
+      },
+      {
+        "q": "Hashimoto 等人的论文标题中出现了哪个由连字符连接的核心术语？",
+        "type": "term",
+        "expected": "rag-lewis-2020",
+        "hit": true,
+        "top1": "attention-is-all-you-need"
+      },
+      {
+        "q": "在这个房间场景里，你最终需要把什么厨房小瓶放到抽屉上？",
+        "type": "colloquial",
+        "expected": "react-yao-2022",
+        "hit": false,
+        "top1": "reflexion"
+      },
+      {
+        "q": "Figure 1 中比较了多少种 prompting methods？",
+        "type": "term",
+        "expected": "react-yao-2022",
+        "hit": false,
+        "top1": "fedavg-survey"
+      },
+      {
+        "q": "作者提醒，未来做更大规模实验前，研究人员应该先留意什么？",
+        "type": "colloquial",
+        "expected": "react-yao-2022",
+        "hit": true,
+        "top1": "graph-attention-review"
+      },
+      {
+        "q": "按照片段，models 在 WebShop 这一 research benchmark 上无法真正完成哪种行为？",
+        "type": "term",
+        "expected": "react-yao-2022",
         "hit": true,
         "top1": "hugginggpt"
       },
       {
-        "q": "Toolformer 如何自主决定调用哪个 API 工具？",
-        "type": "term",
-        "expected": "toolformer",
-        "hit": true,
-        "top1": "toolformer"
-      },
-      {
-        "q": "模型自己学会用计算器和搜索引擎查资料，这是怎么训练出来的？",
+        "q": "每做完一次尝试，系统会把哪种经验写进记忆里，方便之后改进？",
         "type": "colloquial",
-        "expected": "toolformer",
-        "hit": true,
-        "top1": "toolformer"
+        "expected": "reflexion",
+        "hit": false,
+        "top1": "reflexion"
       },
       {
-        "q": "Reflexion 中语言反馈如何替代梯度信号实现自我改进？",
+        "q": "在 Reflexion 中，Self-Reflection model 分析 {τ0, r0} 后会产生什么？",
         "type": "term",
         "expected": "reflexion",
         "hit": true,
         "top1": "reflexion"
       },
       {
-        "q": "智能体做错了任务之后怎么记住教训下次不犯？",
+        "q": "在模型先写代码、再检查自己表现的例子里，代码实现之后紧接着列出的是什么？",
         "type": "colloquial",
+        "expected": "reflexion",
+        "hit": false,
+        "top1": "palm-scaling"
+      },
+      {
+        "q": "在 Reflexion 中，哪个消融示例对应 no Self-Reflection ablation？",
+        "type": "term",
         "expected": "reflexion",
         "hit": true,
         "top1": "reflexion"
       },
       {
-        "q": "参数量增大到什么程度会涌现出小模型不具备的能力？",
+        "q": "那些会先查外部资料再回答的普通模型，在健康问答和推理测试中，成绩比不查资料时明显变好了吗？",
+        "type": "colloquial",
+        "expected": "self-rag",
+        "hit": false,
+        "top1": "fedavg-survey"
+      },
+      {
+        "q": "在写人物小传这类任务上，这个系统的7B和13B模型与那个反复提示大模型修改答案的方法相比，结果怎样？",
+        "type": "colloquial",
+        "expected": "self-rag",
+        "hit": false,
+        "top1": "ddpm-ho"
+      },
+      {
+        "q": "在 bio generation 任务上，SELF-RAG 的 7B 和 13B 模型超越了哪个并发方法？",
+        "type": "term",
+        "expected": "self-rag",
+        "hit": true,
+        "top1": "self-rag"
+      },
+      {
+        "q": "根据5.1 MAIN RESULTS，SELF-RAG在哪些任务上甚至优于ChatGPT？",
+        "type": "term",
+        "expected": "self-rag",
+        "hit": true,
+        "top1": "self-rag"
+      },
+      {
+        "q": "论文说，让语言模型会用搜索引擎、计算器或日历这类东西，是在赋予它什么本领？",
+        "type": "colloquial",
+        "expected": "toolformer",
+        "hit": false,
+        "top1": "hugginggpt"
+      },
+      {
+        "q": "Toolformer 希望工具使用通过哪种学习方式完成，以避免大量人工标注？",
+        "type": "term",
+        "expected": "toolformer",
+        "hit": false,
+        "top1": "palm-scaling"
+      },
+      {
+        "q": "他们训练时一共用了多少块显卡？",
+        "type": "colloquial",
+        "expected": "toolformer",
+        "hit": false,
+        "top1": "self-rag"
+      },
+      {
+        "q": "Toolformer 训练中 effective batch size 是多少？",
+        "type": "term",
+        "expected": "toolformer",
+        "hit": true,
+        "top1": "palm-scaling"
+      },
+      {
+        "q": "如果愿意多花时间、资源和成本来换取更可靠的判断，系统会多次提示语言模型去汇总什么？",
+        "type": "colloquial",
+        "expected": "tree-of-thoughts",
+        "hit": false,
+        "top1": "hugginggpt"
+      },
+      {
+        "q": "在 ToT 框架中，BFS（Algorithm 1）每一步维护什么集合？",
+        "type": "term",
+        "expected": "tree-of-thoughts",
+        "hit": true,
+        "top1": "llm-planning-survey"
+      },
+      {
+        "q": "如果系统判断剩下的某个词根本填不出来，它会怎么处理当前这条搜索路径？",
+        "type": "colloquial",
+        "expected": "tree-of-thoughts",
+        "hit": false,
+        "top1": "palm-scaling"
+      },
+      {
+        "q": "在 Mini Crosswords 中，当某个剩余线索被认为无法填入时，DFS 会做什么？",
+        "type": "term",
+        "expected": "tree-of-thoughts",
+        "hit": true,
+        "top1": "tree-of-thoughts"
+      },
+      {
+        "q": "如果只用比较小的图片数据集来预训练，大号模型和小号模型比，表现会怎样？",
+        "type": "colloquial",
+        "expected": "vit",
+        "hit": true,
+        "top1": "vit"
+      },
+      {
+        "q": "在片段提到的三组预训练数据集中，ViT-Large 模型只有在哪个数据集上预训练时才体现出更大模型的全部优势？",
+        "type": "term",
+        "expected": "vit",
+        "hit": true,
+        "top1": "vit"
+      },
+      {
+        "q": "他们发现训练到多少步以后，再继续训练对最后效果的好处就变小了？",
+        "type": "colloquial",
+        "expected": "vit",
+        "hit": false,
+        "top1": "palm-scaling"
+      },
+      {
+        "q": "在 masked patch prediction 的预训练中，作者最终只报告哪一种 prediction target 的结果？",
+        "type": "term",
+        "expected": "vit",
+        "hit": true,
+        "top1": "vit"
+      },
+      {
+        "q": "把句子里的一些词遮住，再让模型猜回原来的词，这种做法的著名代表模型是什么？",
+        "type": "colloquial",
+        "expected": "xlnet",
+        "hit": false,
+        "top1": "rag-lewis-2020"
+      },
+      {
+        "q": "与 AR language modeling 不同，AE based pretraining 不进行哪一项估计，而是从损坏输入重建原始数据？",
+        "type": "term",
+        "expected": "xlnet",
+        "hit": true,
+        "top1": "xlnet"
+      },
+      {
+        "q": "Kudo 和 Richardson 做的那个把句子拆成小块的工具有个什么名字？",
+        "type": "colloquial",
+        "expected": "xlnet",
+        "hit": true,
+        "top1": "chain-of-thought-wei"
+      },
+      {
+        "q": "Kudo 和 Richardson 提出的 subword tokenizer 的名称是什么？",
+        "type": "term",
+        "expected": "xlnet",
+        "hit": true,
+        "top1": "bert"
+      }
+    ]
+  },
+  {
+    "mode": "hybrid_full",
+    "hit_rate": 0.688,
+    "term_hit_rate": 0.925,
+    "colloquial_hit_rate": 0.45,
+    "p50_ms": 4712.6,
+    "rows": [
+      {
+        "q": "作者把每个并行小部分处理时的数值宽度设成了多少？",
+        "type": "colloquial",
+        "expected": "attention-is-all-you-need",
+        "hit": false,
+        "top1": "fedavg-survey"
+      },
+      {
+        "q": "在 MultiHead(Q, K, V) 的公式中，多个 head 的输出通过什么方式组合？",
+        "type": "term",
+        "expected": "attention-is-all-you-need",
+        "hit": true,
+        "top1": "attention-is-all-you-need"
+      },
+      {
+        "q": "把模型做得更大，效果会怎样？",
+        "type": "colloquial",
+        "expected": "attention-is-all-you-need",
+        "hit": false,
+        "top1": "palm-scaling"
+      },
+      {
+        "q": "片段中，减小注意力键维度 dk 会对模型质量产生什么影响？",
+        "type": "term",
+        "expected": "attention-is-all-you-need",
+        "hit": true,
+        "top1": "attention-is-all-you-need"
+      },
+      {
+        "q": "作者说，如果不继续训练调整，为什么 C 不能算有意义的句子表示？",
+        "type": "colloquial",
+        "expected": "bert",
+        "hit": false,
+        "top1": "self-rag"
+      },
+      {
+        "q": "BERT 的最终模型在 NSP 任务上达到了多少准确率？",
+        "type": "term",
+        "expected": "bert",
+        "hit": true,
+        "top1": "bert"
+      },
+      {
+        "q": "2011 年有个测试机器懂不懂常识的挑战，它叫什么名字？",
+        "type": "colloquial",
+        "expected": "bert",
+        "hit": true,
+        "top1": "bert"
+      },
+      {
+        "q": "Kiros 等人 2015 年发表在 NIPS 上的论文提出了哪种句子表示方法？",
+        "type": "term",
+        "expected": "bert",
+        "hit": false,
+        "top1": "bert"
+      },
+      {
+        "q": "What do ordinary prompts only give us about what big language models can do?",
+        "type": "colloquial",
+        "expected": "chain-of-thought-wei",
+        "hit": true,
+        "top1": "chain-of-thought-wei"
+      },
+      {
+        "q": "What does chain-of-thought prompting facilitate for symbolic reasoning?",
+        "type": "term",
+        "expected": "chain-of-thought-wei",
+        "hit": true,
+        "top1": "chain-of-thought-wei"
+      },
+      {
+        "q": "如果只让模型列算式、不用日常语言解释，它还能做到什么？",
+        "type": "colloquial",
+        "expected": "chain-of-thought-wei",
+        "hit": false,
+        "top1": "palm-scaling"
+      },
+      {
+        "q": "在算术推理中，“Equation only” 的表现介于哪两种提示方式之间？",
+        "type": "term",
+        "expected": "chain-of-thought-wei",
+        "hit": true,
+        "top1": "chain-of-thought-wei"
+      },
+      {
+        "q": "表格里空着没填的那些结果，会生成什么样的样本？",
+        "type": "colloquial",
+        "expected": "ddpm-ho",
+        "hit": false,
+        "top1": "palm-scaling"
+      },
+      {
+        "q": "Lsimple(θ) 中的时间步 t 服从什么分布？",
+        "type": "term",
+        "expected": "ddpm-ho",
+        "hit": true,
+        "top1": "ddpm-ho"
+      },
+      {
+        "q": "用这个模型一点点生成图片时，最先出现的是大轮廓还是小细节？",
+        "type": "colloquial",
+        "expected": "ddpm-ho",
+        "hit": false,
+        "top1": "vit"
+      },
+      {
+        "q": "在Figure 7中，当以同一个latent为条件时，CelebA-HQ 256×256样本共享哪类属性？",
+        "type": "term",
+        "expected": "ddpm-ho",
+        "hit": true,
+        "top1": "ddpm-ho"
+      },
+      {
+        "q": "大模型有时会突然在某些任务上表现变好，现在的研究能把原因完全说清楚吗？",
+        "type": "colloquial",
+        "expected": "emergent-abilities",
+        "hit": true,
+        "top1": "emergent-abilities"
+      },
+      {
+        "q": "本文在 BIG-Bench 上对 cross-entropy loss 的 scaling 进行了哪方面的分析？",
         "type": "term",
         "expected": "emergent-abilities",
         "hit": true,
         "top1": "emergent-abilities"
       },
       {
-        "q": "为什么模型越大突然就会做以前完全不会的事？",
+        "q": "哪篇论文讨论的是会说话的人工智能可能给社会带来哪些坏处？",
         "type": "colloquial",
         "expected": "emergent-abilities",
-        "hit": true,
-        "top1": "emergent-abilities"
+        "hit": false,
+        "top1": "gpt4-report"
       },
       {
-        "q": "让模型自己判断什么时候该查资料、查到的靠不靠谱，这种做法叫什么？",
+        "q": "PromptChainer 使用什么方式把大语言模型的提示串联起来？",
+        "type": "term",
+        "expected": "emergent-abilities",
+        "hit": true,
+        "top1": "chain-of-thought-wei"
+      },
+      {
+        "q": "每轮开始时，服务器会随机抽出一部分用户来参与，随机抽出的这部分被怎么描述？",
+        "type": "colloquial",
+        "expected": "fedavg-survey",
+        "hit": false,
+        "top1": "fedavg-survey"
+      },
+      {
+        "q": "片段中，当各客户端数据划分不满足 IID 假设时，这种情形被称为什么？",
+        "type": "term",
+        "expected": "fedavg-survey",
+        "hit": true,
+        "top1": "fedavg-survey"
+      },
+      {
+        "q": "用莎士比亚作品构建语言建模数据时，最后一共产生了多少个参与方？",
+        "type": "colloquial",
+        "expected": "fedavg-survey",
+        "hit": true,
+        "top1": "fedavg-survey"
+      },
+      {
+        "q": "在MNIST数据的Non-IID划分中，100个客户端各自被分配几个shard？",
+        "type": "term",
+        "expected": "fedavg-survey",
+        "hit": false,
+        "top1": "fedavg-survey"
+      },
+      {
+        "q": "如果事先没有更多信息，攻击者一般会先挑哪类对象下手来拖低整体准确率？",
+        "type": "colloquial",
+        "expected": "gnn-robustness-at-scale",
+        "hit": false,
+        "top1": "gpt4-report"
+      },
+      {
+        "q": "对于全局攻击，代理损失在 ψ→0+ 处应当具有什么样的梯度？",
+        "type": "term",
+        "expected": "gnn-robustness-at-scale",
+        "hit": true,
+        "top1": "gnn-robustness-at-scale"
+      },
+      {
+        "q": "当只保留排名最靠前的一部分东西时，表里说 k 通常被当作什么来用？",
+        "type": "colloquial",
+        "expected": "gnn-robustness-at-scale",
+        "hit": true,
+        "top1": "gnn-robustness-at-scale"
+      },
+      {
+        "q": "片段中，当 f(n)/g(n) 的极限小于无穷大时，可推出哪个渐近记号关系？",
+        "type": "term",
+        "expected": "gnn-robustness-at-scale",
+        "hit": true,
+        "top1": "gnn-robustness-at-scale"
+      },
+      {
+        "q": "片段说，如果给 GPT-4 配上外部数据，它可能被拿来干什么？",
+        "type": "colloquial",
+        "expected": "gpt4-report",
+        "hit": true,
+        "top1": "gpt4-report"
+      },
+      {
+        "q": "片段中哪个术语指模型倾向于复述对话用户偏好的答案？",
+        "type": "term",
+        "expected": "gpt4-report",
+        "hit": true,
+        "top1": "gpt4-report"
+      },
+      {
+        "q": "如果一条回应先说它要拒绝，但后面又继续给内容，按片段还算不算拒绝？",
+        "type": "colloquial",
+        "expected": "gpt4-report",
+        "hit": false,
+        "top1": "gpt4-report"
+      },
+      {
+        "q": "在 Non-erotic sexual content 的列举项中，第一项是什么？",
+        "type": "term",
+        "expected": "gpt4-report",
+        "hit": true,
+        "top1": "gpt4-report"
+      },
+      {
+        "q": "训练的时候，每个类别最多能放多少条数据进去？",
+        "type": "colloquial",
+        "expected": "graph-attention-review",
+        "hit": false,
+        "top1": "self-rag"
+      },
+      {
+        "q": "在 transductive learning 中，节点特征对应什么？",
+        "type": "term",
+        "expected": "graph-attention-review",
+        "hit": true,
+        "top1": "graph-attention-review"
+      },
+      {
+        "q": "2008年有一篇论文，讲的是把数据画成图来观察，这篇论文的标题是什么？",
+        "type": "colloquial",
+        "expected": "graph-attention-review",
+        "hit": true,
+        "top1": "gnn-robustness-at-scale"
+      },
+      {
+        "q": "Scarselli 等人关于图神经网络模型的论文标题是什么？",
+        "type": "term",
+        "expected": "graph-attention-review",
+        "hit": true,
+        "top1": "graph-attention-review"
+      },
+      {
+        "q": "HuggingGPT 接到用户请求后，会先把请求怎么处理，好继续解决？",
+        "type": "colloquial",
+        "expected": "hugginggpt",
+        "hit": false,
+        "top1": "hugginggpt"
+      },
+      {
+        "q": "在 HuggingGPT 的 Model Selection 阶段，ChatGPT 依据什么来选择 Hugging Face 上托管的专家模型？",
+        "type": "term",
+        "expected": "hugginggpt",
+        "hit": true,
+        "top1": "hugginggpt"
+      },
+      {
+        "q": "那篇讲给文字生成图片的模型加额外控制条件的文章，网上编号是多少？",
+        "type": "colloquial",
+        "expected": "hugginggpt",
+        "hit": true,
+        "top1": "hugginggpt"
+      },
+      {
+        "q": "《Adding Conditional Control to Text-to-Image Diffusion Models》的 arXiv 编号是什么？",
+        "type": "term",
+        "expected": "hugginggpt",
+        "hit": true,
+        "top1": "hugginggpt"
+      },
+      {
+        "q": "为什么只让模型给出一个方案可能不够好？",
+        "type": "colloquial",
+        "expected": "llm-planning-survey",
+        "hit": false,
+        "top1": "llm-planning-survey"
+      },
+      {
+        "q": "在 optimal plan selection 中，Self-consistency 采用哪种策略选择最优计划？",
+        "type": "term",
+        "expected": "llm-planning-survey",
+        "hit": true,
+        "top1": "llm-planning-survey"
+      },
+      {
+        "q": "为什么一些小型规划模型碰到复杂又不常见的问题时容易表现不好？",
+        "type": "colloquial",
+        "expected": "llm-planning-survey",
+        "hit": false,
+        "top1": "llm-planning-survey"
+      },
+      {
+        "q": "Neural planners 是使用哪些技术训练的深度模型？",
+        "type": "term",
+        "expected": "llm-planning-survey",
+        "hit": true,
+        "top1": "llm-planning-survey"
+      },
+      {
+        "q": "用自动工具筛掉“有毒”内容时，可能会不成比例地把谁写的内容排除掉？",
+        "type": "colloquial",
+        "expected": "palm-scaling",
+        "hit": true,
+        "top1": "palm-scaling"
+      },
+      {
+        "q": "片段建议在真实下游任务中使用 PaLM 时进行哪一类 fairness evaluation，以评估潜在危害？",
+        "type": "term",
+        "expected": "palm-scaling",
+        "hit": true,
+        "top1": "palm-scaling"
+      },
+      {
+        "q": "有一篇论文讲的是不用人工标注就能把一种编程语言转成另一种，这篇论文的标题是什么？",
+        "type": "colloquial",
+        "expected": "palm-scaling",
+        "hit": true,
+        "top1": "palm-scaling"
+      },
+      {
+        "q": "RACE 数据集的完整名称是什么？",
+        "type": "term",
+        "expected": "palm-scaling",
+        "hit": false,
+        "top1": "xlnet"
+      },
+      {
+        "q": "文中提到这类模型在记忆方面有什么不便？",
+        "type": "colloquial",
+        "expected": "rag-lewis-2020",
+        "hit": false,
+        "top1": "palm-scaling"
+      },
+      {
+        "q": "在语言生成任务中，RAG 模型相比 state-of-the-art parametric-only seq2seq baseline 生成了什么样的语言？",
+        "type": "term",
+        "expected": "rag-lewis-2020",
+        "hit": true,
+        "top1": "rag-lewis-2020"
+      },
+      {
+        "q": "哪篇文献研究的是在显卡上做超大规模的相似内容查找？",
+        "type": "colloquial",
+        "expected": "rag-lewis-2020",
+        "hit": true,
+        "top1": "rag-lewis-2020"
+      },
+      {
+        "q": "Hashimoto 等人的论文标题中出现了哪个由连字符连接的核心术语？",
+        "type": "term",
+        "expected": "rag-lewis-2020",
+        "hit": true,
+        "top1": "gpt4-report"
+      },
+      {
+        "q": "在这个房间场景里，你最终需要把什么厨房小瓶放到抽屉上？",
+        "type": "colloquial",
+        "expected": "react-yao-2022",
+        "hit": false,
+        "top1": "reflexion"
+      },
+      {
+        "q": "Figure 1 中比较了多少种 prompting methods？",
+        "type": "term",
+        "expected": "react-yao-2022",
+        "hit": true,
+        "top1": "react-yao-2022"
+      },
+      {
+        "q": "作者提醒，未来做更大规模实验前，研究人员应该先留意什么？",
+        "type": "colloquial",
+        "expected": "react-yao-2022",
+        "hit": true,
+        "top1": "react-yao-2022"
+      },
+      {
+        "q": "按照片段，models 在 WebShop 这一 research benchmark 上无法真正完成哪种行为？",
+        "type": "term",
+        "expected": "react-yao-2022",
+        "hit": true,
+        "top1": "react-yao-2022"
+      },
+      {
+        "q": "每做完一次尝试，系统会把哪种经验写进记忆里，方便之后改进？",
+        "type": "colloquial",
+        "expected": "reflexion",
+        "hit": true,
+        "top1": "reflexion"
+      },
+      {
+        "q": "在 Reflexion 中，Self-Reflection model 分析 {τ0, r0} 后会产生什么？",
+        "type": "term",
+        "expected": "reflexion",
+        "hit": true,
+        "top1": "reflexion"
+      },
+      {
+        "q": "在模型先写代码、再检查自己表现的例子里，代码实现之后紧接着列出的是什么？",
+        "type": "colloquial",
+        "expected": "reflexion",
+        "hit": false,
+        "top1": "reflexion"
+      },
+      {
+        "q": "在 Reflexion 中，哪个消融示例对应 no Self-Reflection ablation？",
+        "type": "term",
+        "expected": "reflexion",
+        "hit": true,
+        "top1": "reflexion"
+      },
+      {
+        "q": "那些会先查外部资料再回答的普通模型，在健康问答和推理测试中，成绩比不查资料时明显变好了吗？",
+        "type": "colloquial",
+        "expected": "self-rag",
+        "hit": false,
+        "top1": "rag-lewis-2020"
+      },
+      {
+        "q": "在写人物小传这类任务上，这个系统的7B和13B模型与那个反复提示大模型修改答案的方法相比，结果怎样？",
         "type": "colloquial",
         "expected": "self-rag",
         "hit": true,
         "top1": "self-rag"
+      },
+      {
+        "q": "在 bio generation 任务上，SELF-RAG 的 7B 和 13B 模型超越了哪个并发方法？",
+        "type": "term",
+        "expected": "self-rag",
+        "hit": true,
+        "top1": "self-rag"
+      },
+      {
+        "q": "根据5.1 MAIN RESULTS，SELF-RAG在哪些任务上甚至优于ChatGPT？",
+        "type": "term",
+        "expected": "self-rag",
+        "hit": true,
+        "top1": "self-rag"
+      },
+      {
+        "q": "论文说，让语言模型会用搜索引擎、计算器或日历这类东西，是在赋予它什么本领？",
+        "type": "colloquial",
+        "expected": "toolformer",
+        "hit": true,
+        "top1": "toolformer"
+      },
+      {
+        "q": "Toolformer 希望工具使用通过哪种学习方式完成，以避免大量人工标注？",
+        "type": "term",
+        "expected": "toolformer",
+        "hit": true,
+        "top1": "toolformer"
+      },
+      {
+        "q": "他们训练时一共用了多少块显卡？",
+        "type": "colloquial",
+        "expected": "toolformer",
+        "hit": false,
+        "top1": "attention-is-all-you-need"
+      },
+      {
+        "q": "Toolformer 训练中 effective batch size 是多少？",
+        "type": "term",
+        "expected": "toolformer",
+        "hit": true,
+        "top1": "toolformer"
+      },
+      {
+        "q": "如果愿意多花时间、资源和成本来换取更可靠的判断，系统会多次提示语言模型去汇总什么？",
+        "type": "colloquial",
+        "expected": "tree-of-thoughts",
+        "hit": false,
+        "top1": "palm-scaling"
+      },
+      {
+        "q": "在 ToT 框架中，BFS（Algorithm 1）每一步维护什么集合？",
+        "type": "term",
+        "expected": "tree-of-thoughts",
+        "hit": true,
+        "top1": "tree-of-thoughts"
+      },
+      {
+        "q": "如果系统判断剩下的某个词根本填不出来，它会怎么处理当前这条搜索路径？",
+        "type": "colloquial",
+        "expected": "tree-of-thoughts",
+        "hit": false,
+        "top1": "tree-of-thoughts"
+      },
+      {
+        "q": "在 Mini Crosswords 中，当某个剩余线索被认为无法填入时，DFS 会做什么？",
+        "type": "term",
+        "expected": "tree-of-thoughts",
+        "hit": true,
+        "top1": "tree-of-thoughts"
+      },
+      {
+        "q": "如果只用比较小的图片数据集来预训练，大号模型和小号模型比，表现会怎样？",
+        "type": "colloquial",
+        "expected": "vit",
+        "hit": true,
+        "top1": "vit"
+      },
+      {
+        "q": "在片段提到的三组预训练数据集中，ViT-Large 模型只有在哪个数据集上预训练时才体现出更大模型的全部优势？",
+        "type": "term",
+        "expected": "vit",
+        "hit": true,
+        "top1": "vit"
+      },
+      {
+        "q": "他们发现训练到多少步以后，再继续训练对最后效果的好处就变小了？",
+        "type": "colloquial",
+        "expected": "vit",
+        "hit": true,
+        "top1": "palm-scaling"
+      },
+      {
+        "q": "在 masked patch prediction 的预训练中，作者最终只报告哪一种 prediction target 的结果？",
+        "type": "term",
+        "expected": "vit",
+        "hit": true,
+        "top1": "vit"
+      },
+      {
+        "q": "把句子里的一些词遮住，再让模型猜回原来的词，这种做法的著名代表模型是什么？",
+        "type": "colloquial",
+        "expected": "xlnet",
+        "hit": false,
+        "top1": "bert"
+      },
+      {
+        "q": "与 AR language modeling 不同，AE based pretraining 不进行哪一项估计，而是从损坏输入重建原始数据？",
+        "type": "term",
+        "expected": "xlnet",
+        "hit": true,
+        "top1": "xlnet"
+      },
+      {
+        "q": "Kudo 和 Richardson 做的那个把句子拆成小块的工具有个什么名字？",
+        "type": "colloquial",
+        "expected": "xlnet",
+        "hit": true,
+        "top1": "palm-scaling"
+      },
+      {
+        "q": "Kudo 和 Richardson 提出的 subword tokenizer 的名称是什么？",
+        "type": "term",
+        "expected": "xlnet",
+        "hit": true,
+        "top1": "xlnet"
       }
     ]
   }

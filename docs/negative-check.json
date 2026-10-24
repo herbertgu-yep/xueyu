@@ -1,0 +1,65 @@
+{
+  "n_positive": 80,
+  "n_negative": 10,
+  "auc": 0.964,
+  "positive_median": 0.7637,
+  "negative_median": 0.0006,
+  "best_threshold": {
+    "threshold": 0.0026,
+    "balanced_acc": 0.925,
+    "positive_recall": 0.95,
+    "negative_reject": 0.9
+  },
+  "negatives": [
+    {
+      "q": "量子纠错里的表面码如何检测比特翻转？",
+      "top1": "vit",
+      "score": 0.0017
+    },
+    {
+      "q": "CRISPR-Cas9 的脱靶效应怎么评估？",
+      "top1": "gnn-robustness-at-scale",
+      "score": 0.0683
+    },
+    {
+      "q": "Kubernetes Ingress 的 TLS 证书如何自动续期？",
+      "top1": "toolformer",
+      "score": 0.0001
+    },
+    {
+      "q": "明朝一条鞭法的主要内容是什么？",
+      "top1": "palm-scaling",
+      "score": 0.0002
+    },
+    {
+      "q": "飞机机翼的层流控制有哪些方法？",
+      "top1": "bert",
+      "score": 0.0003
+    },
+    {
+      "q": "咖啡萃取中粉水比对风味有什么影响？",
+      "top1": "palm-scaling",
+      "score": 0.0001
+    },
+    {
+      "q": "5G NR 的时分双工帧结构是怎样的？",
+      "top1": "ddpm-ho",
+      "score": 0.0006
+    },
+    {
+      "q": "线性规划单纯形法遇到退化情况怎么处理？",
+      "top1": "hugginggpt",
+      "score": 0.0018
+    },
+    {
+      "q": "交响乐中赋格的主题如何展开？",
+      "top1": "reflexion",
+      "score": 0.0003
+    },
+    {
+      "q": "蛋白质冷冻电镜的三维重构流程是什么？",
+      "top1": "ddpm-ho",
+      "score": 0.0015
+    }
+  ]
+}
