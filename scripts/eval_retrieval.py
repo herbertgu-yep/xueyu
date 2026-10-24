@@ -110,8 +110,10 @@ def main() -> None:
             f"hybrid_full 有 {len(failed)} 题没有真正完成重排，数据不可用；"
             f"首个错误：{failed[0].get('rerank_failed') or failed[0].get('rewrite_failed')}")
     rewritten = sum(1 for m in full_meta if len(m.get("queries", [])) > 1)
-    print(f"\n模型调用自检：{rewritten}/{len(full_meta)} 题完成了多查询改写，"
-          f"{len(full_meta)}/{len(full_meta)} 题完成了 LLM 重排")
+    kinds = {m.get("reranked") for m in full_meta}
+    models = {m.get("rerank_model") for m in full_meta}
+    print(f"\n自检：{rewritten}/{len(full_meta)} 题完成了多查询改写；"
+          f"重排方式 {sorted(kinds)}，模型 {sorted(x for x in models if x)}")
 
     OUT_PATH.write_text(json.dumps(results, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"\n{'模式':14s}{'命中率':>8s}{'术语':>8s}{'口语':>8s}{'p50(ms)':>10s}")
