@@ -74,6 +74,15 @@ def using_api() -> bool:
     return _api_usable(_cfg())
 
 
+def threshold() -> Optional[float]:
+    """当前重排模型的低置信度阈值；未配置返回 None。"""
+    try:
+        value = (_cfg().get("thresholds") or {}).get(model_name())
+        return float(value) if value not in (None, "") else None
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def fallback_count() -> int:
     """远程重排失败、退回本地模型的次数（评测据此判断数据是否可用）。"""
     return _fallback_count

@@ -9,6 +9,7 @@ from __future__ import annotations
 import logging
 import re
 import threading
+from collections import OrderedDict
 import time
 import traceback
 from typing import Any, Optional
@@ -390,8 +391,8 @@ def index_document(doc_id: int) -> dict:
 def remove_document(doc_id: int) -> None:
     try:
         _chroma_store().delete(str(doc_id))
-    except Exception:
-        pass
+    except Exception as e:  # noqa: BLE001
+        log.warning("删除向量失败 doc=%s: %s", doc_id, e)
 
 
 def _chroma_store():
@@ -417,8 +418,8 @@ def reindex_all() -> dict:
         try:
             try:
                 _get_collection()._client.delete_collection("shelf")
-            except Exception:
-                pass
+            except Exception as e:  # noqa: BLE001
+                log.debug("清空集合失败（首次重建时正常）：%s", e)
             reset_client()
             _get_index()
             for i, did in enumerate(doc_ids):
@@ -446,7 +447,8 @@ def reindex_all() -> dict:
 
 # ---------------------------------------------------------------- 混合检索（BM25 + 向量 + RRF）
 
-_bm25_cache: dict[str, Any] = {"corpus_sig": None, "bm25": None, "chunks": []}
+_bm25_cache: "OrderedDict[tuple, tuple[Any, list[dict]]]" = OrderedDict()
+_BM25_CACHE_MAX = 4
 
 
 def _norm_text(text: str) -> str:
@@ -467,18 +469,23 @@ def _tokenize_zh(text: str) -> list[str]:
 
 
 def _bm25_for_docs(doc_ids: Optional[list[int]] = None) -> tuple[Any, list[dict]]:
-    """从 DB 构建内存 BM25 索引（全量或限定文档），带签名缓存。"""
+    """从 DB 构建内存 BM25 索引（全量或限定文档），小型 LRU 缓存。
+
+    签名带每篇文档的 id/长度/索引时间：内容被替换但总长度没变时也会重建。
+    不同文档集合各占一个槽位，来回切换不会反复重建。
+    """
     with Session(engine) as s:
         if doc_ids:
             docs = s.exec(select(Document).where(Document.id.in_(doc_ids))).all()
         else:
             docs = s.exec(select(Document)).all()
-        # 签名要能发现"内容被替换但总长度没变"：带上每篇的长度与索引时间
         sig = (tuple(sorted(doc_ids)) if doc_ids else "all", len(docs),
                tuple(sorted((d.id, len(d.text_content or ""), d.indexed_at or "") for d in docs)))
         with _state_lock:
-            if _bm25_cache["corpus_sig"] == sig:
-                return _bm25_cache["bm25"], _bm25_cache["chunks"]
+            hit = _bm25_cache.get(sig)
+            if hit is not None:
+                _bm25_cache.move_to_end(sig)
+                return hit
 
         chunks = []
         for d in docs:
@@ -488,11 +495,14 @@ def _bm25_for_docs(doc_ids: Optional[list[int]] = None) -> tuple[Any, list[dict]
             for i, piece in enumerate(split_chunks(d.text_content)):
                 chunks.append({"chunk_id": f"{d.id}:{i}", "doc_id": d.id,
                                "title": d.title, "text": piece})
-    with _state_lock:
-        from rank_bm25 import BM25Okapi
+    from rank_bm25 import BM25Okapi
 
-        bm25 = BM25Okapi([_tokenize_zh(c["text"][:3000]) for c in chunks]) if chunks else None
-        _bm25_cache.update({"corpus_sig": sig, "bm25": bm25, "chunks": chunks})
+    bm25 = BM25Okapi([_tokenize_zh(c["text"][:3000]) for c in chunks]) if chunks else None
+    with _state_lock:
+        _bm25_cache[sig] = (bm25, chunks)
+        _bm25_cache.move_to_end(sig)
+        while len(_bm25_cache) > _BM25_CACHE_MAX:
+            _bm25_cache.popitem(last=False)
     return bm25, chunks
 
 
@@ -628,6 +638,24 @@ def _rerank_fallback_count() -> int:
     return rerank_mod.fallback_count()
 
 
+def _rerank_threshold() -> Optional[float]:
+    from app.services import rerank as rerank_mod
+
+    return rerank_mod.threshold()
+
+
+def _annotate_confidence(meta: dict, ranked: list[dict]) -> None:
+    """记录最高分，并按当前模型阈值标记低置信度（不在这里过滤，调用方决定）。"""
+    top = ranked[0].get("rerank_score") if ranked else None
+    if top is not None:
+        meta["top_score"] = float(top)
+    threshold = _rerank_threshold()
+    if threshold is not None:
+        meta["rerank_threshold"] = threshold
+        if top is not None and float(top) < threshold:
+            meta["low_confidence"] = True
+
+
 async def _llm_listwise_rerank(query: str, chunks: list[dict]) -> list[dict]:
     """让 LLM 按相关性输出候选编号顺序（listwise）；调用失败抛异常，由调用方记录。"""
     from app.services import llm as llm_mod
@@ -701,6 +729,7 @@ async def query_shelf_hybrid(query: str, *, doc_ids: Optional[list[int]] = None,
                     meta["rerank_fallback"] = True   # 远程失败退回了本地，评测视为不可用
                 meta["reranked"] = "rerank_api" if _rerank_using_api() else "cross_encoder"
                 meta["rerank_model"] = _rerank_model_name()
+                _annotate_confidence(meta, ranked)
                 return ranked[:k], meta
         # cross-encoder 不可用，或显式指定 llm 时走 LLM listwise 重排
         try:
