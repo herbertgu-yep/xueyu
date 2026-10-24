@@ -5,6 +5,7 @@ import asyncio
 import logging
 from typing import Optional
 
+import httpcore
 import httpx
 import trafilatura
 
@@ -28,25 +29,112 @@ _BLOCKED_NETS = tuple(
 # 否则开了代理的用户所有网页抓取都会被拦。
 
 
-def _host_allowed(host: str) -> bool:
-    """只放行公网主机，挡掉回环、内网、链路本地（云元数据）等地址。"""
+def _resolve_checked(host: str) -> list[str]:
+    """解析主机并校验全部地址；任何一个是内网/回环就整体拒绝。"""
     import ipaddress
     import socket
 
     if not host:
-        return False
+        return []
     try:
         infos = socket.getaddrinfo(host, None)
     except Exception:
-        return False
+        return []
+    ips = []
     for info in infos:
         try:
             ip = ipaddress.ip_address(info[4][0])
         except ValueError:
             continue
         if any(ip in net for net in _BLOCKED_NETS if net.version == ip.version):
-            return False
-    return True
+            return []
+        ips.append(str(ip))
+    return ips
+
+
+def _host_allowed(host: str) -> bool:
+    return bool(_resolve_checked(host))
+
+
+def _proxy_configured() -> bool:
+    import os
+
+    return any(os.environ.get(k) for k in
+               ("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY",
+                "http_proxy", "https_proxy", "all_proxy"))
+
+
+class _PinnedBackend:
+    """把 TCP 连接固定到校验过的 IP，避免 DNS 重绑定（TLS SNI 仍是原域名）。"""
+
+    def __init__(self, host: str, ip: str, inner):
+        self.host, self.ip, self.inner = host, ip, inner
+
+    def connect_tcp(self, host, port, timeout=None, local_address=None, socket_options=None):
+        target = self.ip if host == self.host else host
+        return self.inner.connect_tcp(target, port, timeout, local_address, socket_options)
+
+    def connect_unix_socket(self, path, timeout=None, socket_options=None):
+        return self.inner.connect_unix_socket(path, timeout, socket_options)
+
+    def sleep(self, seconds):
+        return self.inner.sleep(seconds)
+
+
+def _pinned_get_sync(url: str, timeout: float) -> Optional[tuple[int, dict, bytes]]:
+    import ssl as _ssl
+    from urllib.parse import urlparse
+
+    p = urlparse(url)
+    host = p.hostname or ""
+    ips = _resolve_checked(host)
+    if not ips:
+        return None
+    ctx = _ssl.create_default_context() if p.scheme == "https" else None
+    pool = httpcore.ConnectionPool(
+        ssl_context=ctx, network_backend=_PinnedBackend(host, ips[0], httpcore.SyncBackend()))
+    try:
+        resp = pool.request("GET", url, headers={"User-Agent": UA},
+                            extensions={"timeout": {"connect": timeout, "read": timeout,
+                                                    "write": timeout, "pool": timeout}})
+        headers = {k.decode().lower(): v.decode() for k, v in resp.headers}
+        status = resp.status
+        content = bytes(resp.content)[:MAX_BYTES]   # pool.request 已把响应读完
+        resp.close()
+        return status, headers, content
+    except Exception as e:  # noqa: BLE001
+        log.warning("pinned fetch failed: %s (%s)", url, e)
+        return None
+    finally:
+        pool.close()
+
+
+async def _pinned_get_async(url: str, timeout: float) -> Optional[tuple[int, dict, bytes]]:
+    import ssl as _ssl
+    from urllib.parse import urlparse
+
+    p = urlparse(url)
+    host = p.hostname or ""
+    ips = _resolve_checked(host)
+    if not ips:
+        return None
+    ctx = _ssl.create_default_context() if p.scheme == "https" else None
+    pool = httpcore.AsyncConnectionPool(
+        ssl_context=ctx, network_backend=_PinnedBackend(host, ips[0], httpcore.AnyIOBackend()))
+    try:
+        resp = await pool.request("GET", url, headers={"User-Agent": UA},
+                                  extensions={"timeout": {"connect": timeout, "read": timeout,
+                                                          "write": timeout, "pool": timeout}})
+        headers = {k.decode().lower(): v.decode() for k, v in resp.headers}
+        status = resp.status
+        content = bytes(resp.content)[:MAX_BYTES]
+        await resp.aclose()
+        return status, headers, content
+    except Exception as e:  # noqa: BLE001
+        log.warning("pinned fetch failed: %s (%s)", url, e)
+        return None
+    finally:
+        await pool.aclose()
 
 
 def safe_url(url: str) -> bool:
@@ -58,8 +146,8 @@ def safe_url(url: str) -> bool:
     return _host_allowed(p.hostname or "")
 
 
-async def _get_html(url: str, *, timeout: float, client: httpx.AsyncClient) -> Optional[str]:
-    """逐跳校验重定向后抓取（httpx 自动跟随会绕过首跳校验）。"""
+async def _get_html(url: str, *, timeout: float, client: Optional[httpx.AsyncClient] = None) -> Optional[str]:
+    """逐跳校验重定向后抓取；无代理时把连接固定到已校验的 IP。"""
     from urllib.parse import urljoin
 
     current = url
@@ -67,18 +155,30 @@ async def _get_html(url: str, *, timeout: float, client: httpx.AsyncClient) -> O
         if not safe_url(current):
             log.warning("blocked unsafe url: %s", current)
             return None
-        resp = await client.get(current, follow_redirects=False)
-        if resp.is_redirect:
-            current = urljoin(current, resp.headers.get("location", ""))
+        if client is None:
+            got = await _pinned_get_async(current, timeout)
+            if not got:
+                return None
+            status, headers, content = got
+        else:
+            resp = await client.get(current, follow_redirects=False)
+            status = resp.status_code
+            headers = {k.lower(): v for k, v in resp.headers.items()}
+            content = resp.content[:MAX_BYTES]
+            if resp.is_redirect:
+                current = urljoin(current, headers.get("location", ""))
+                continue
+            if status < 400:
+                return content.decode(resp.encoding or "utf-8", errors="replace")
+            return None
+        if 300 <= status < 400 and headers.get("location"):
+            current = urljoin(current, headers["location"])
             continue
-        if resp.status_code >= 400:
+        if status >= 400:
             return None
-        if "text/html" not in resp.headers.get("content-type", "html"):
+        if "text/html" not in headers.get("content-type", "html"):
             return None
-        content = resp.content
-        if len(content) > MAX_BYTES:
-            content = content[:MAX_BYTES]
-        return content.decode(resp.encoding or "utf-8", errors="replace")
+        return content.decode("utf-8", errors="replace")
     return None
 
 
@@ -121,12 +221,26 @@ def fetch_page_sync(url: str, *, timeout: float = 12.0, cap: int = 6000) -> Opti
 
     if not safe_url(url):
         return None
+    pinned = not _proxy_configured()
     try:
         current = url
-        with httpx.Client(follow_redirects=False, timeout=timeout, headers={"User-Agent": UA}) as client:
+        client = None if pinned else httpx.Client(
+            follow_redirects=False, timeout=timeout, headers={"User-Agent": UA})
+        try:
             for _ in range(MAX_REDIRECTS + 1):
                 if not safe_url(current):
                     return None
+                if client is None:
+                    got = _pinned_get_sync(current, timeout)
+                    if not got:
+                        return None
+                    status, headers, content = got
+                    if 300 <= status < 400 and headers.get("location"):
+                        current = urljoin(current, headers["location"])
+                        continue
+                    if status >= 400 or "text/html" not in headers.get("content-type", "html"):
+                        return None
+                    return _extract_text(content.decode("utf-8", errors="replace"), cap)
                 resp = client.get(current)
                 if resp.is_redirect:
                     current = urljoin(current, resp.headers.get("location", ""))
@@ -137,7 +251,11 @@ def fetch_page_sync(url: str, *, timeout: float = 12.0, cap: int = 6000) -> Opti
                     return None
                 html = resp.content[:MAX_BYTES].decode(resp.encoding or "utf-8", errors="replace")
                 return _extract_text(html, cap)
-    except Exception:  # noqa: BLE001
+        finally:
+            if client is not None:
+                client.close()
+    except Exception as e:  # noqa: BLE001
+        log.warning("fetch failed: %s (%s)", url, e)
         return None
     return None
 
@@ -147,10 +265,14 @@ async def afetch_page(url: str, *, timeout: float = 12.0, cap: int = 6000) -> Op
     if not safe_url(url):
         return None
     try:
-        async with httpx.AsyncClient(follow_redirects=False, timeout=timeout,
-                                     headers={"User-Agent": UA}) as client:
-            html = await _get_html(url, timeout=timeout, client=client)
-    except Exception:  # noqa: BLE001
+        if _proxy_configured():
+            async with httpx.AsyncClient(follow_redirects=False, timeout=timeout,
+                                         headers={"User-Agent": UA}) as client:
+                html = await _get_html(url, timeout=timeout, client=client)
+        else:
+            html = await _get_html(url, timeout=timeout)
+    except Exception as e:  # noqa: BLE001
+        log.warning("fetch failed: %s (%s)", url, e)
         return None
     if not html:
         return None
