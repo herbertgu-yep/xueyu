@@ -68,9 +68,11 @@ def _append_log(task_id: str, line: str) -> None:
 
 
 def create_task(*, query: str, workspace: dict, thinking_level: str, web_enabled: bool,
-                paradigm: str = "plan_execute", skill_ids: Optional[list[str]] = None) -> dict:
+                paradigm: str = "plan_execute", skill_ids: Optional[list[str]] = None,
+                mcp_servers: Optional[list[str]] = None) -> dict:
     task_id = f"task_{uuid.uuid4().hex[:8]}"
     skill_ids = skill_ids or []
+    mcp_servers = mcp_servers or []
     with Session(engine) as s:
         task = ResearchTask(
             id=task_id,
@@ -80,6 +82,7 @@ def create_task(*, query: str, workspace: dict, thinking_level: str, web_enabled
             web_enabled=web_enabled,
             paradigm=paradigm if paradigm in ("plan_execute", "react", "multi_agent") else "plan_execute",
             skills_json=json.dumps(skill_ids, ensure_ascii=False),
+            mcp_servers_json=json.dumps(mcp_servers, ensure_ascii=False),
             status="queued",
         )
         s.add(task)
@@ -102,12 +105,13 @@ def start_runner(task_id: str) -> None:
         # 技能内容
         from app.services import settings_store
 
+        # 只把技能元数据交给 Agent；正文由 load_skill 按需读取
         skills = []
         for sid in json.loads(task.skills_json or "[]"):
             try:
-                skills.append({"name": sid, "content": settings_store.read_skill(sid)})
-            except Exception:
-                pass
+                skills.append(settings_store.skill_meta(sid))
+            except Exception as e:  # noqa: BLE001
+                _append_log(task_id, f"[{time.strftime('%H:%M:%S')}] ⚠️ 技能 {sid} 读取失败：{e}")
         cfg = settings_store.get("research")
         memory_path = Path(REPORTS_DIR) / task_id / "memory.md"
 
@@ -120,6 +124,7 @@ def start_runner(task_id: str) -> None:
             emit=emit,
             paradigm=getattr(task, "paradigm", None) or "plan_execute",
             skills=skills,
+            skill_loader=settings_store.read_skill,
             react_max_steps=cfg.get("react_max_steps", 14),
             auto_memory=cfg.get("auto_memory", True),
             memory_path=memory_path,
@@ -134,6 +139,11 @@ def start_runner(task_id: str) -> None:
             try:
                 # MCP：连接启用的服务器，把外部工具并入 Agent
                 servers = settings_store.get("mcp_servers").get("items") or []
+                wanted = set(json.loads(getattr(task, "mcp_servers_json", None) or "[]"))
+                if wanted:
+                    servers = [x for x in servers if x.get("name") in wanted]
+                else:
+                    servers = [x for x in servers if x.get("enabled", True)]
                 if servers and cfg.get("mcp_enabled", True):
                     from app.agent.mcp_client import connect_all
 

@@ -124,7 +124,7 @@
 // 标识符（$ / api / toast / esc 等）由 app.js 全局提供
 let tasks = [], selectedId = null, ws = null, logs = [];
 const state = {web: true, thinking: 'standard', workspace: 'shelf_rag', noteIds: [], docIds: [],
-               paradigm: 'plan_execute', skillIds: [], mcpInfo: null};
+               paradigm: 'plan_execute', skillIds: [], mcpServers: null, mcpInfo: null};
 
 const WS_DESC = () => ({
   web: `🌐 已选「<b>全网</b>」：检索公开网络与页面正文，需要联网。`,
@@ -166,16 +166,28 @@ $('#skills-chip').onclick = async function () {
   }
 };
 (async () => {
-  // MCP 状态指示
+  // MCP：按任务选择服务器；不选 = 所有启用的服务器
   const servers = await api('/settings/mcp').then(r => r.filter(s => s.enabled)).catch(() => []);
   const chip = $('#mcp-chip');
-  if (servers.length) {
-    chip.textContent = `🔌 MCP · ${servers.length}`;
-    chip.classList.add('has-sel');
+  if (!servers.length) {
     chip.onclick = () => location.href = '/settings';
-  } else {
-    chip.onclick = () => location.href = '/settings';
+    return;
   }
+  chip.classList.add('has-sel');
+  const refresh = () => {
+    const n = state.mcpServers ? state.mcpServers.length : servers.length;
+    chip.textContent = `🔌 MCP · ${n}`;
+  };
+  refresh();
+  chip.onclick = async () => {
+    const picked = await pickDialog('选择参与本次研究的 MCP 服务器（可多选）',
+      servers.map(s => ({id: s.name, title: s.name, sub: s.command, icon: '🔌'})),
+      {multi: true, preselected: state.mcpServers || servers.map(s => s.name)});
+    if (picked === null) return;
+    const ids = picked.map(p => p.id);
+    state.mcpServers = ids.length === servers.length ? null : ids;
+    refresh();
+  };
 })();
 
 $('#netChip').onclick = function () {
@@ -234,6 +246,7 @@ $('#start-research').onclick = async () => {
       web_enabled: state.web,
       paradigm: state.paradigm,
       skill_ids: state.skillIds,
+      mcp_servers: state.mcpServers || [],
     }});
     $('#research-input').value = '';
     toast('研究已提交 🚀', '后台运行中，可以关掉窗口去做别的', 'ok', () => selectTask(t.id));

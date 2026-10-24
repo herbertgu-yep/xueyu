@@ -48,7 +48,7 @@ DEFAULTS: dict[str, Any] = {
     "embedding": {"mode": "local", "model": "BAAI/bge-small-zh-v1.5", "api_provider": "openai",
                   "api_base_url": "", "api_key": "", "api_model": "text-embedding-3-small"},
     "rerank": {"mode": "local", "api_provider": "dashscope", "api_base_url": "", "api_key": "",
-               "api_model": "", "api_top_n": 12},
+               "api_model": "", "api_top_n": 12, "thresholds": {}},
     "reminder": {"enabled": False, "time": "09:00"},
     "general": {"nickname": "同学", "daily_goal_minutes": 60},
 }
@@ -179,11 +179,43 @@ def skills_dir():
     return d
 
 
+def skill_meta(skill_id: str) -> dict:
+    """技能元数据：frontmatter 优先，没有就取正文第一段。
+
+    渐进式加载只把这段元数据放进初始上下文，正文等 load_skill 再读。
+    """
+    content = read_skill(skill_id)
+    name, desc, when = skill_id, "", ""
+    body = content
+    try:
+        import frontmatter
+
+        post = frontmatter.loads(content)
+        name = str(post.get("name") or name)
+        desc = str(post.get("description") or "")
+        when = str(post.get("when_to_use") or post.get("when") or "")
+        body = post.content
+    except Exception:
+        pass
+    if not desc:
+        lines = [ln.strip() for ln in body.splitlines()
+                 if ln.strip() and not ln.strip().startswith("#")]
+        desc = lines[0][:120] if lines else ""
+    return {"id": skill_id, "name": name[:80], "description": desc[:160],
+            "when_to_use": when[:160]}
+
+
 def list_skills() -> list[dict]:
     out = []
     for f in sorted(skills_dir().glob("*.md")):
-        out.append({"id": f.stem, "name": f.stem, "size": f.stat().st_size,
-                    "updated": f.stat().st_mtime})
+        item = {"id": f.stem, "name": f.stem, "size": f.stat().st_size,
+                "updated": f.stat().st_mtime}
+        try:
+            item.update(skill_meta(f.stem))
+            item["id"], item["name"] = f.stem, item.get("name") or f.stem
+        except Exception:
+            pass
+        out.append(item)
     return out
 
 

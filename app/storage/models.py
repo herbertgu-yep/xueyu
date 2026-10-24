@@ -118,6 +118,7 @@ class ResearchTask(SQLModel, table=True):
     thinking_level: str = Field(default="standard")  # quick | standard | deep
     paradigm: str = Field(default="plan_execute")    # plan_execute | react | multi_agent
     skills_json: Optional[str] = Field(default=None, sa_column=Column(Text))
+    mcp_servers_json: Optional[str] = Field(default=None, sa_column=Column(Text))
     web_enabled: bool = Field(default=True)
     status: str = Field(default="queued", index=True)  # queued|running|paused|completed|failed|cancelled
     progress: float = Field(default=0.0)

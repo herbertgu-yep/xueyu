@@ -13,6 +13,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import re
 import time
 from pathlib import Path
 from typing import Any, Callable, Optional
@@ -55,11 +56,46 @@ RESEARCH_TOOLS = [
         "parameters": {"type": "object", "properties": {}, "required": []}}},
 ]
 
+_JSON_TYPES = {"string": str, "integer": int, "number": (int, float),
+              "boolean": bool, "array": list, "object": dict}
+
+
+def validate_tool_args(schema: dict, args: dict) -> Optional[str]:
+    """按 JSON Schema 的常用子集校验参数；返回错误文本或 None。
+
+    只做本地能可靠判断的部分（required/type/enum），复杂约束交给服务端。
+    """
+    if not isinstance(args, dict):
+        return "参数必须是 JSON 对象"
+    props = (schema or {}).get("properties") or {}
+    for key in (schema or {}).get("required") or []:
+        if key not in args:
+            return f"缺少必填参数 {key}"
+    for key, value in args.items():
+        spec = props.get(key) or {}
+        expect = spec.get("type")
+        if expect in _JSON_TYPES:
+            py_type = _JSON_TYPES[expect]
+            if expect == "integer" and isinstance(value, bool):
+                return f"参数 {key} 应为整数"
+            if not isinstance(value, py_type):
+                return f"参数 {key} 类型应为 {expect}"
+        if spec.get("enum") and value not in spec["enum"]:
+            return f"参数 {key} 不在允许取值内"
+    return None
+
+
+LOAD_SKILL_TOOL = {"type": "function", "function": {
+    "name": "load_skill", "description": "按需加载某个研究技能的完整正文。",
+    "parameters": {"type": "object", "properties": {"skill_id": {"type": "string"}},
+                   "required": ["skill_id"]}}}
+
 
 class ResearchRunner:
     def __init__(self, *, task_id: str, query: str, workspace: dict,
                  thinking_level: str, web_enabled: bool, emit: EMIT,
                  paradigm: str = "plan_execute", skills: Optional[list[dict]] = None,
+                 skill_loader: Optional[Callable[[str], str]] = None,
                  mcp_clients: Optional[list] = None, react_max_steps: int = 14,
                  auto_memory: bool = True, memory_path: Optional[Path] = None,
                  hybrid_multi_query: bool = True, hybrid_rerank: bool = False):
@@ -71,8 +107,11 @@ class ResearchRunner:
         self.web_enabled = web_enabled
         self.emit = emit
         self.paradigm = paradigm if paradigm in ("plan_execute", "react", "multi_agent") else "plan_execute"
-        self.skills = skills or []
+        self.skills = skills or []          # 只有元数据：id/name/description/when_to_use
+        self.skill_loader = skill_loader
+        self.loaded_skills: list[dict] = []
         self.mcp_clients = mcp_clients or []
+        self._mcp_alias: dict[str, tuple] = {}
         self.react_max_steps = max(4, int(react_max_steps or 14))
         self.auto_memory = auto_memory
         self.memory_path = memory_path
@@ -127,8 +166,8 @@ class ResearchRunner:
             try:
                 self.memory_path.parent.mkdir(parents=True, exist_ok=True)
                 self.memory_path.write_text("\n".join(f"- {m}" for m in self.memory), encoding="utf-8")
-            except Exception:
-                pass
+            except Exception as e:  # noqa: BLE001
+                self.log(f"⚠️ 任务记忆落盘失败：{e}", kind="warn")
 
     def _workspace_prompt(self) -> str:
         """让拆解/撰写阶段知道工作区里有什么——尤其 docs 全文工作区。"""
@@ -157,11 +196,62 @@ class ResearchRunner:
             return "\n\n【重要上下文】本研究的资料来自用户书架的向量索引（用户上传的文档内容）。"
         return ""
 
+    def _skill_ids(self) -> list[str]:
+        return [str(s.get("id") or s.get("name") or "") for s in self.skills]
+
+    async def _prepare_skills(self) -> None:
+        """元数据先给模型看，再按任务挑最多 2 个加载正文。"""
+        ids = [i for i in self._skill_ids() if i]
+        if not ids or not self.skill_loader:
+            return
+        chosen = ids[:2]
+        if len(ids) > 2:
+            try:
+                listing = "\n".join(
+                    f"- {s['id']}：{s.get('name')} — {s.get('description')}（适用：{s.get('when_to_use')}）"
+                    for s in self.skills)
+                data = await llm.ask_json(
+                    "你是技能筛选器。根据研究问题从候选技能里挑最多 2 个最相关的，"
+                    '只输出 JSON：{"skills": ["id", …]}；没有相关技能就返回空数组。',
+                    f"研究问题：{self.query}\n候选技能：\n{listing}", temperature=0.1, fn="research")
+                picked = [str(x) for x in data.get("skills", []) if str(x) in ids]
+                if picked:
+                    chosen = picked[:2]
+            except Exception as e:  # noqa: BLE001
+                self.log(f"⚠️ 技能自动筛选失败，使用前两个：{e}", kind="warn")
+        for sid in chosen:
+            self._load_skill(sid, log=False)
+        self.log(f"🧩 技能：候选 {len(ids)} 个，已加载 {[s['id'] for s in self.loaded_skills]}", kind="ok")
+
+    def _load_skill(self, skill_id: str, *, log: bool = True) -> str:
+        sid = str(skill_id or "").strip()
+        if sid not in self._skill_ids():
+            return f"技能 {sid} 不在本次可用列表里"
+        if any(s["id"] == sid for s in self.loaded_skills):
+            return f"技能 {sid} 已加载"
+        try:
+            content = self.skill_loader(sid) if self.skill_loader else ""
+        except Exception as e:  # noqa: BLE001
+            return f"读取技能失败：{e}"
+        meta = next((s for s in self.skills if str(s.get("id")) == sid), {})
+        self.loaded_skills.append({"id": sid, "name": meta.get("name") or sid, "content": content})
+        if log:
+            self.log(f"🧩 已加载技能：{sid}", kind="ok")
+        return content[:4000] or "技能内容为空"
+
     def skills_prompt(self) -> str:
         if not self.skills:
             return ""
-        return "\n\n【用户启用的研究技能（必须遵守）】\n" + "\n".join(
-            f"### 技能：{s.get('name', '技能')}\n{s.get('content', '')[:1500]}" for s in self.skills)
+        lines = ["\n\n【可用技能（按需加载）】"]
+        for s in self.skills:
+            lines.append(f"- {s.get('id')}：{s.get('name')} — {s.get('description')}"
+                         f"（适用：{s.get('when_to_use')}）")
+        if self.loaded_skills:
+            lines.append("\n【已加载技能（必须遵守）】")
+            for s in self.loaded_skills:
+                lines.append(f"### {s['name']}\n{s['content'][:2000]}")
+        lines.append("\n需要其它技能时调用 load_skill(skill_id) 读取完整正文。")
+        return "\n".join(lines)
 
     def memory_prompt(self) -> str:
         if not self.memory:
@@ -250,6 +340,7 @@ class ResearchRunner:
 
     # ---------------- 入口 ----------------
     async def run(self) -> dict:
+        await self._prepare_skills()
         if self.paradigm == "react":
             await self._react()
         elif self.paradigm == "multi_agent":
@@ -391,12 +482,24 @@ class ResearchRunner:
         if not results:
             self.log(f"「{sub}」没有搜到公开结果", kind="warn")
 
+    def _filter_by_confidence(self, chunks: list[dict], meta: dict) -> list[dict]:
+        """低于当前重排模型阈值的片段不进入信源；没有阈值时原样返回。"""
+        threshold = meta.get("rerank_threshold")
+        if threshold is None:
+            return chunks
+        return [c for c in chunks
+                if c.get("rerank_score") is not None and float(c["rerank_score"]) >= threshold]
+
     async def _rag_for(self, sub: str, doc_ids: Optional[list[int]]) -> None:
         try:
             chunks, meta = await rag_service.query_shelf_hybrid(
                 sub, doc_ids=doc_ids,
                 k=self.profile["results_per_search"],
                 multi_query=self.hybrid_multi_query, rerank=self.hybrid_rerank)
+            chunks = self._filter_by_confidence(chunks, meta)
+            if meta.get("low_confidence") and not chunks:
+                self.log(f"⚠️ 「{sub}」检索置信度低于阈值，不纳入书架信源", kind="warn")
+                return
             if len(meta.get("queries", [])) > 1:
                 self.log(f"🔀 multi-query 改写为 {len(meta['queries'])} 个检索式", kind="ok")
             how = {"rerank_api": " → 重排 API", "cross_encoder": " → cross-encoder 重排",
@@ -421,14 +524,15 @@ class ResearchRunner:
                 f"主题：{topic}\n信源：\n{recent}", temperature=0.1, fn="research")
             for f in facts.get("facts", [])[:4]:
                 self.memory_save(str(f))
-        except Exception:
-            pass
+        except Exception as e:  # noqa: BLE001
+            self.log(f"⚠️ 事实提取失败（不影响继续研究）：{e}", kind="warn")
 
     # ---------------- 范式二：ReAct ----------------
     async def _react(self) -> None:
         self.set_progress(0.05, "ReAct 循环启动")
         mcp_tools = self._mcp_tool_specs()
-        all_tools = RESEARCH_TOOLS + mcp_tools
+        skill_tools = [LOAD_SKILL_TOOL] if self.skills else []
+        all_tools = RESEARCH_TOOLS + skill_tools + mcp_tools
         self.log(f"🤖 ReAct 循环：{len(all_tools)} 个工具可用"
                  + (f"（含 MCP：{', '.join(t['function']['name'] for t in mcp_tools)}）" if mcp_tools else ""), kind="ok")
         messages: list[dict] = [
@@ -515,13 +619,38 @@ class ResearchRunner:
         await self._verify(0.80)
 
     def _mcp_tool_specs(self) -> list[dict]:
-        specs = []
-        for client in self.mcp_clients:
-            for t in client.tools:
-                specs.append({"type": "function", "function": {
-                    "name": f"mcp__{client.name}__{t['name']}"[:64],
-                    "description": f"[MCP:{client.name}] {t['description']}"[:300],
-                    "parameters": t.get("inputSchema") or {"type": "object", "properties": {}}}})
+        """给 MCP 工具生成唯一短名；工具多时按任务关键词筛到 12 个。
+
+        同名/截断冲突用哈希后缀区分，执行时通过 _mcp_alias 反查真实工具名，
+        不再依赖从 `mcp__server__tool` 里反向拆字符串。
+        """
+        pairs = [(c, t) for c in self.mcp_clients for t in c.tools]
+        if len(pairs) > 12:
+            tokens = set(re.findall(r"[a-z0-9]+|[\u4e00-\u9fff]", self.query.lower()))
+            def score(pair):
+                text = f"{pair[1].get('name', '')} {pair[1].get('description', '')}".lower()
+                return sum(1 for tok in tokens if tok in text)
+            pairs = sorted(pairs, key=lambda p: -score(p))[:12]
+            self.log(f"🔌 MCP 工具较多，按任务筛出 {len(pairs)} 个", kind="ok")
+
+        specs, used = [], set()
+        for client, t in pairs:
+            base = f"mcp__{client.name}__{t['name']}".replace(" ", "_")
+            alias = base[:64]
+            if alias in used or len(base) > 64:
+                digest = hashlib.sha1(base.encode()).hexdigest()[:6]
+                alias = f"{base[:57]}_{digest}"
+            n = 2
+            while alias in used:
+                alias = f"{base[:55]}_{digest[:4]}{n}"
+                n += 1
+            used.add(alias)
+            schema = t.get("inputSchema") or {"type": "object", "properties": {}}
+            self._mcp_alias[alias] = (client, t["name"], schema)
+            specs.append({"type": "function", "function": {
+                "name": alias,
+                "description": f"[MCP:{client.name}] {t['description']}"[:300],
+                "parameters": schema}})
         return specs
 
     async def _exec_tool(self, name: str, args: dict) -> str:
@@ -537,7 +666,11 @@ class ResearchRunner:
                 return text[:4000] or "抓取失败"
             if name == "shelf_search":
                 chunks, _meta = await rag_service.query_shelf_hybrid(
-                    args.get("query", ""), k=int(args.get("k", 5)), multi_query=False, rerank=False)
+                    args.get("query", ""), k=int(args.get("k", 5)),
+                    multi_query=False, rerank=self.hybrid_rerank)
+                chunks = self._filter_by_confidence(chunks, _meta)
+                if not chunks:
+                    return "书架里没有足够相关的片段（置信度低于阈值）"
                 for c in chunks:
                     self.add_source(origin="doc", title=f"{c['title']}（片段）",
                                     url=f"doc://{c['doc_id']}", text=c["text"])
@@ -547,22 +680,24 @@ class ResearchRunner:
                 for h in hits:
                     self.add_source(origin="note", title=h["title"], url=f"note://{h['id']}", text=h["snippet"])
                 return "\n".join(f"《{h['title']}》：{h['snippet']}" for h in hits) or "无结果"
+            if name == "load_skill":
+                return self._load_skill(args.get("skill_id", ""))
             if name == "memory_save":
                 self.memory_save(args.get("fact", ""))
                 return "已存入任务记忆"
             if name == "finish_research":
                 return "已确认结束。"
-            if name.startswith("mcp__"):
-                _, server, tool = name.split("__", 2)
-                client = next((c for c in self.mcp_clients if c.name == server), None)
-                if not client:
-                    return "MCP 服务器未连接"
+            if name in self._mcp_alias:
+                client, tool, schema = self._mcp_alias[name]
+                err = validate_tool_args(schema, args)
+                if err:
+                    return f"MCP 参数校验失败：{err}"
                 result = await client.call(tool, args)
                 text = str(result or "").strip()
                 if text:
                     # 和网页/文档一样进入统一信源，报告里的引用才能追溯
-                    self.add_source(origin="mcp", title=f"{server}:{tool}",
-                                    url=f"mcp://{server}/{tool}", text=text[:4000])
+                    self.add_source(origin="mcp", title=f"{client.name}:{tool}",
+                                    url=f"mcp://{client.name}/{tool}", text=text[:4000])
                 return result
             return f"未知工具 {name}"
         except CancelledByUser:

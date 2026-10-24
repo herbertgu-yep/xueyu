@@ -24,7 +24,8 @@ def _migrate_columns() -> None:
     """轻量列迁移：旧库补新列。"""
     targets = {
         "research_task": (("paradigm", "VARCHAR(20) DEFAULT 'plan_execute'"),
-                          ("skills_json", "TEXT")),
+                          ("skills_json", "TEXT"),
+                          ("mcp_servers_json", "TEXT")),
         "review_item": (("schedule_type", "VARCHAR(20) DEFAULT 'normal'"),),
     }
     with engine.connect() as conn:

@@ -25,6 +25,7 @@ class ResearchIn(BaseModel):
     web_enabled: bool = True
     paradigm: str = "plan_execute"    # plan_execute | react | multi_agent
     skill_ids: list[str] = []
+    mcp_servers: list[str] = []       # 空 = 所有启用的服务器；否则只连这些
 
 
 @router.get("")
@@ -45,6 +46,7 @@ async def create_task(body: ResearchIn):
         web_enabled=body.web_enabled,
         paradigm=body.paradigm,
         skill_ids=body.skill_ids,
+        mcp_servers=body.mcp_servers,
     )
 
 
