@@ -28,6 +28,18 @@ class ResearchIn(BaseModel):
     mcp_servers: list[str] = []       # 空 = 所有启用的服务器；否则只连这些
 
 
+class ApprovalIn(BaseModel):
+    approval_id: str
+    approved: bool
+
+
+@router.post("/{task_id}/approval")
+def approve_tool(task_id: str, body: ApprovalIn):
+    if not research_service.resolve_approval(task_id, body.approval_id, body.approved):
+        raise HTTPException(404, "审批请求不存在或已超时")
+    return {"ok": True}
+
+
 @router.get("")
 def list_tasks():
     return research_service.list_tasks()

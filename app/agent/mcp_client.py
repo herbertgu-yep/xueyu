@@ -87,7 +87,8 @@ class McpStdioClient:
             result = await self._request("tools/list", {})
             self.tools = [
                 {"name": t.get("name", ""), "description": (t.get("description") or "")[:300],
-                 "inputSchema": t.get("inputSchema") or {"type": "object", "properties": {}}}
+                 "inputSchema": t.get("inputSchema") or {"type": "object", "properties": {}},
+                 "annotations": t.get("annotations") or {}}
                 for t in (result or {}).get("tools", [])
             ]
             self.started = True

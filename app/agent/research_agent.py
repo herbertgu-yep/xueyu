@@ -15,6 +15,7 @@ import hashlib
 import json
 import re
 import time
+import uuid
 from pathlib import Path
 from typing import Any, Callable, Optional
 
@@ -85,8 +86,31 @@ def validate_tool_args(schema: dict, args: dict) -> Optional[str]:
     return None
 
 
+_HIGH_RISK_WORDS = {"delete", "remove", "drop", "destroy", "pay", "payment",
+                    "transfer", "purchase", "refund", "send", "publish", "upload",
+                    "execute", "exec", "shell", "cmd", "command", "write", "update",
+                    "create", "insert", "modify", "rename", "move"}
+_READ_WORDS = {"get", "list", "search", "query", "read", "fetch", "retrieve",
+               "describe", "lookup", "find", "show", "head", "stat"}
+
+
+def tool_risk_level(name: str, description: str, annotations: Optional[dict]) -> str:
+    """read / write / high。high 需要用户确认。"""
+    ann = annotations or {}
+    if ann.get("destructiveHint") is True:
+        return "high"
+    if ann.get("readOnlyHint") is True:
+        return "read"
+    words = set(re.findall(r"[a-z0-9]+", f"{name} {description or ''}".lower()))
+    if words & _HIGH_RISK_WORDS:
+        return "high"
+    if words & _READ_WORDS:
+        return "read"
+    return "write"
+
+
 LOAD_SKILL_TOOL = {"type": "function", "function": {
-    "name": "load_skill", "description": "按需加载某个研究技能的完整正文。",
+    "name": "load_skill", "description": "加载某个研究技能的正文（过长会截断并标注）。",
     "parameters": {"type": "object", "properties": {"skill_id": {"type": "string"}},
                    "required": ["skill_id"]}}}
 
@@ -112,6 +136,8 @@ class ResearchRunner:
         self.loaded_skills: list[dict] = []
         self.mcp_clients = mcp_clients or []
         self._mcp_alias: dict[str, tuple] = {}
+        self._approvals: dict[str, asyncio.Event] = {}
+        self._approval_results: dict[str, bool] = {}
         self.react_max_steps = max(4, int(react_max_steps or 14))
         self.auto_memory = auto_memory
         self.memory_path = memory_path
@@ -214,14 +240,47 @@ class ResearchRunner:
                     "你是技能筛选器。根据研究问题从候选技能里挑最多 2 个最相关的，"
                     '只输出 JSON：{"skills": ["id", …]}；没有相关技能就返回空数组。',
                     f"研究问题：{self.query}\n候选技能：\n{listing}", temperature=0.1, fn="research")
-                picked = [str(x) for x in data.get("skills", []) if str(x) in ids]
-                if picked:
-                    chosen = picked[:2]
+                # 成功返回空数组 = 明确表示没有相关技能，不加载
+                chosen = [str(x) for x in data.get("skills", []) if str(x) in ids][:2]
             except Exception as e:  # noqa: BLE001
                 self.log(f"⚠️ 技能自动筛选失败，使用前两个：{e}", kind="warn")
         for sid in chosen:
             self._load_skill(sid, log=False)
         self.log(f"🧩 技能：候选 {len(ids)} 个，已加载 {[s['id'] for s in self.loaded_skills]}", kind="ok")
+
+    async def _ask_approval(self, server: str, tool: str, args: dict) -> bool:
+        """高风险 MCP 工具等用户确认；取消或 5 分钟超时都按拒绝处理。"""
+        rid = uuid.uuid4().hex[:8]
+        evt = asyncio.Event()
+        self._approvals[rid] = evt
+        self.log(f"⏸ 高风险工具 {server}:{tool} 等待用户确认", kind="warn")
+        self.emit("approval", {"id": rid, "task_id": self.task_id, "server": server,
+                               "tool": tool,
+                               "args": json.dumps(args, ensure_ascii=False)[:800]})
+        wait_evt = asyncio.create_task(evt.wait())
+        wait_cancel = asyncio.create_task(self.cancel_flag.wait())
+        try:
+            done, _ = await asyncio.wait({wait_evt, wait_cancel}, timeout=300,
+                                         return_when=asyncio.FIRST_COMPLETED)
+        finally:
+            for task in (wait_evt, wait_cancel):
+                task.cancel()
+            self._approvals.pop(rid, None)
+        if self.cancel_flag.is_set():
+            raise CancelledByUser
+        if not done:
+            self.log("⚠️ 审批超时，已拒绝该工具调用", kind="warn")
+            self._approval_results.pop(rid, None)
+            return False
+        return self._approval_results.pop(rid, False)
+
+    def resolve_approval(self, approval_id: str, approved: bool) -> bool:
+        evt = self._approvals.get(approval_id)
+        if not evt:
+            return False
+        self._approval_results[approval_id] = bool(approved)
+        evt.set()
+        return True
 
     def _load_skill(self, skill_id: str, *, log: bool = True) -> str:
         sid = str(skill_id or "").strip()
@@ -237,7 +296,11 @@ class ResearchRunner:
         self.loaded_skills.append({"id": sid, "name": meta.get("name") or sid, "content": content})
         if log:
             self.log(f"🧩 已加载技能：{sid}", kind="ok")
-        return content[:4000] or "技能内容为空"
+        if not content:
+            return "技能内容为空"
+        if len(content) > 4000:
+            return content[:4000] + f"\n\n…（技能正文已截断，共 {len(content)} 字）"
+        return content
 
     def skills_prompt(self) -> str:
         if not self.skills:
@@ -249,7 +312,10 @@ class ResearchRunner:
         if self.loaded_skills:
             lines.append("\n【已加载技能（必须遵守）】")
             for s in self.loaded_skills:
-                lines.append(f"### {s['name']}\n{s['content'][:2000]}")
+                body = s["content"]
+                if len(body) > 2000:
+                    body = body[:2000] + "\n…（技能正文已截断）"
+                lines.append(f"### {s['name']}\n{body}")
         lines.append("\n需要其它技能时调用 load_skill(skill_id) 读取完整正文。")
         return "\n".join(lines)
 
@@ -646,7 +712,8 @@ class ResearchRunner:
                 n += 1
             used.add(alias)
             schema = t.get("inputSchema") or {"type": "object", "properties": {}}
-            self._mcp_alias[alias] = (client, t["name"], schema)
+            self._mcp_alias[alias] = (client, t["name"], schema, t.get("annotations") or {},
+                                     t.get("description") or "")
             specs.append({"type": "function", "function": {
                 "name": alias,
                 "description": f"[MCP:{client.name}] {t['description']}"[:300],
@@ -688,16 +755,23 @@ class ResearchRunner:
             if name == "finish_research":
                 return "已确认结束。"
             if name in self._mcp_alias:
-                client, tool, schema = self._mcp_alias[name]
+                client, tool, schema, annotations, description = self._mcp_alias[name]
                 err = validate_tool_args(schema, args)
                 if err:
                     return f"MCP 参数校验失败：{err}"
+                if tool_risk_level(tool, description, annotations) == "high":
+                    if not await self._ask_approval(client.name, tool, args):
+                        return "用户拒绝执行该工具调用"
                 result = await client.call(tool, args)
                 text = str(result or "").strip()
                 if text:
-                    # 和网页/文档一样进入统一信源，报告里的引用才能追溯
+                    # 同一个工具的不同参数是不同证据，不能只按 URL 去重
+                    digest = hashlib.sha1(
+                        json.dumps(args, sort_keys=True, ensure_ascii=False).encode()
+                    ).hexdigest()[:12]
                     self.add_source(origin="mcp", title=f"{client.name}:{tool}",
-                                    url=f"mcp://{client.name}/{tool}", text=text[:4000])
+                                    url=f"mcp://{client.name}/{tool}",
+                                    key=f"mcp:{client.name}:{tool}:{digest}", text=text[:4000])
                 return result
             return f"未知工具 {name}"
         except CancelledByUser:

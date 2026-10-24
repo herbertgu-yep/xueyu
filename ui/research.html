@@ -367,6 +367,16 @@ function connectWS(id) {
       if (m.status === 'paused') { setPausedUI(true); loadTasks(); }
       if (m.status === 'running') { setPausedUI(false); loadTasks(); }
     } else if (m.type === 'sources' || m.type === 'conflicts') { loadTasks(); }
+    else if (m.type === 'approval') {
+      (async () => {
+        const ok = await confirmDialog(`高风险工具需要确认：${m.server}:${m.tool}`,
+          `参数：${m.args || '{}'}\n\n允许执行吗？`);
+        try {
+          await api(`/research/${m.task_id || id}/approval`, {method: 'POST',
+            body: {approval_id: m.id, approved: !!ok}});
+        } catch (e) { showError(e); }
+      })();
+    }
   };
   ws.onclose = () => {};
 }

@@ -173,6 +173,13 @@ def start_runner(task_id: str) -> None:
         _tasks[task_id] = asyncio.get_running_loop().create_task(_run())
 
 
+def resolve_approval(task_id: str, approval_id: str, approved: bool) -> bool:
+    runner = _runners.get(task_id)
+    if not runner:
+        return False
+    return runner.resolve_approval(approval_id, approved)
+
+
 def _handle_event_sync(task_id: str, event: str, payload: dict) -> None:
     """在事件循环内被 runner 调用：更新 DB 并广播。"""
     if event == "log":
@@ -187,6 +194,8 @@ def _handle_event_sync(task_id: str, event: str, payload: dict) -> None:
     elif event == "conflicts":
         _update(task_id, conflicts_found=payload["conflicts_found"])
         _broadcast_sync(task_id, {"type": "conflicts", **payload})
+    elif event == "approval":
+        _broadcast_sync(task_id, {"type": "approval", **payload})
 
 
 def _broadcast_sync(task_id: str, payload: dict) -> None:
