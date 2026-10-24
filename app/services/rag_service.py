@@ -6,6 +6,8 @@
 """
 from __future__ import annotations
 
+import logging
+import re
 import threading
 import time
 import traceback
@@ -17,6 +19,8 @@ from app.config import CHROMA_DIR
 from app.storage.db import engine
 from app.storage.models import Document
 from app.services import settings_store
+
+log = logging.getLogger("xueyu.rag")
 
 _state_lock = threading.Lock()
 _state: dict[str, Any] = {
@@ -292,6 +296,16 @@ CHUNK_SIZE = 480
 CHUNK_OVERLAP = 60
 CE_RERANK_LIMIT = 12  # cross-encoder 精排的候选上限（按 RRF 顺序取前 N）
 
+_PAGE_MARK = re.compile(r"【第\s*(\d+)\s*页】")
+
+
+def _page_of(text: str, which: str = "start") -> Optional[int]:
+    """从分块里的「【第 N 页】」标记取起止页；没有标记返回 None。"""
+    nums = [int(x) for x in _PAGE_MARK.findall(text or "")]
+    if not nums:
+        return None
+    return nums[0] if which == "start" else nums[-1]
+
 
 def split_chunks(text: str) -> list[str]:
     """统一的切块口径，向量索引与 BM25 都走这里，保证两路能对齐到同一个 chunk。"""
@@ -322,29 +336,47 @@ def index_document(doc_id: int) -> dict:
         with _state_lock:
             _state["current"] = doc.title
 
-        vector_store = _chroma_store()
+        # 旧向量马上要删，先把状态改成"未索引"：中途失败时不会出现
+        # indexed=True 但集合里已经没有这块数据的情况
+        doc.indexed = False
+        doc.chunk_count = 0
+        doc.index_error = None
+        s.add(doc)
+        s.commit()
         try:
-            vector_store.delete(str(doc.id))  # 旧块先删，保证幂等
-        except Exception:
-            pass
+            vector_store = _chroma_store()
+            try:
+                vector_store.delete(str(doc.id))  # 旧块先删，保证幂等
+            except Exception as e:  # noqa: BLE001
+                log.debug("delete old vectors failed doc=%s: %s", doc.id, e)
 
-        # 与 BM25 共用 split_chunks()：带 metadata 切块会改变边界，
-        # 两路的 chunk_id 就对不上，RRF 的"同一块两路命中"也就失效了。
-        from llama_index.core.schema import TextNode
+            # 与 BM25 共用 split_chunks()：带 metadata 切块会改变边界，
+            # 两路的 chunk_id 就对不上，RRF 的"同一块两路命中"也就失效了。
+            from llama_index.core.schema import TextNode
 
-        pieces = split_chunks(doc.text_content)
-        nodes = [
-            TextNode(
-                text=piece,
-                id_=f"{doc.id}:{i}",
-                metadata={"doc_id": str(doc.id), "title": doc.title, "chunk_id": f"{doc.id}:{i}"},
-                # 元数据只用于回溯出处，不参与向量化，避免标题泄漏进检索
-                excluded_embed_metadata_keys=["doc_id", "title", "chunk_id"],
-                excluded_llm_metadata_keys=["doc_id", "title", "chunk_id"],
-            )
-            for i, piece in enumerate(pieces)
-        ]
-        _get_index().insert_nodes(nodes, show_progress=False)
+            pieces = split_chunks(doc.text_content)
+            nodes = [
+                TextNode(
+                    text=piece,
+                    id_=f"{doc.id}:{i}",
+                    metadata={"doc_id": str(doc.id), "title": doc.title,
+                              "chunk_id": f"{doc.id}:{i}",
+                              "page_start": _page_of(piece, "start"),
+                              "page_end": _page_of(piece, "end")},
+                    # 元数据只用于回溯出处，不参与向量化，避免标题泄漏进检索
+                    excluded_embed_metadata_keys=["doc_id", "title", "chunk_id", "page_start", "page_end"],
+                    excluded_llm_metadata_keys=["doc_id", "title", "chunk_id", "page_start", "page_end"],
+                )
+                for i, piece in enumerate(pieces)
+            ]
+            _get_index().insert_nodes(nodes, show_progress=False)
+        except Exception as e:
+            doc.indexed = False
+            doc.chunk_count = 0
+            doc.index_error = f"向量化失败：{e}"[:300]
+            s.add(doc)
+            s.commit()
+            raise
 
         doc.indexed = True
         doc.indexed_at = time.strftime("%Y-%m-%dT%H:%M:%S%z")
@@ -711,6 +743,8 @@ def query_shelf(query: str, *, doc_ids: Optional[list[int]] = None, k: int = 5) 
             "chunk_id": meta.get("chunk_id"),
             "doc_id": meta.get("doc_id"),
             "title": meta.get("title", ""),
+            "page_start": meta.get("page_start"),
+            "page_end": meta.get("page_end"),
             "text": n.get_content().strip(),
             "score": round(score, 4) if score is not None else None,
         })

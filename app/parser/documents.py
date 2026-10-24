@@ -7,10 +7,14 @@
 """
 from __future__ import annotations
 
+import logging
+
 from pathlib import Path
 from typing import Callable, Optional
 
 import pymupdf
+
+log = logging.getLogger("xueyu.parser")
 
 MAX_TEXT_CHARS = 600_000  # 超长文档截断保护（向量索引与分析用）
 
@@ -29,8 +33,8 @@ def parse_pdf(path: Path, *, ocr: Optional[Callable[[bytes], str]] = None) -> tu
                 if ocr_text:
                     text = ocr_text
                     ocr_used = True
-            except Exception:
-                pass  # OCR 失败时保留原样（可能真没字）
+            except Exception as e:  # noqa: BLE001
+                log.warning("OCR 失败，保留原文本（第 %s 页）：%s", page.number + 1, e)
         pages.append(f"【第 {page.number + 1} 页】\n{text}")
     n = doc.page_count
     doc.close()
@@ -78,10 +82,11 @@ def parse_plain(path: Path) -> tuple[str, Optional[int]]:
 def parse_any(path: Path, fmt: Optional[str] = None) -> dict:
     """统一入口。返回 {text, pages, ocr_used, fmt}。"""
     fmt = (fmt or path.suffix.lstrip(".").lower()).lower()
+    ocr_used = False
     if fmt in ("md", "markdown", "txt"):
         text, pages = parse_plain(path)
     elif fmt == "pdf":
-        text, pages, _ = parse_pdf(path, ocr=get_ocr())
+        text, pages, ocr_used = parse_pdf(path, ocr=get_ocr())
     elif fmt == "docx":
         text, pages = parse_docx(path)
     elif fmt == "pptx":
@@ -92,7 +97,7 @@ def parse_any(path: Path, fmt: Optional[str] = None) -> dict:
         raise ValueError("旧版 .ppt 请先在 PowerPoint/WPS 中另存为 .pptx")
     else:
         raise ValueError(f"暂不支持的格式：.{fmt}")
-    return {"text": text, "pages": pages, "ocr_used": False, "fmt": "md" if fmt == "markdown" else fmt}
+    return {"text": text, "pages": pages, "ocr_used": ocr_used, "fmt": "md" if fmt == "markdown" else fmt}
 
 
 _OCR_FN: Optional[Callable[[bytes], str]] = None
