@@ -77,6 +77,24 @@ def del_category(cat_id: int):
     return {"ok": True}
 
 
+MAX_FILES = 20
+MAX_FILE_BYTES = 50 * 1024 * 1024          # 单文件 50MB
+MAX_TOTAL_BYTES = 200 * 1024 * 1024        # 单次批量 200MB
+
+
+async def _read_limited(f: UploadFile, limit: int) -> bytes:
+    """分块读，超限立刻中止，避免把超大文件整个读进内存。"""
+    buf = bytearray()
+    while True:
+        chunk = await f.read(1024 * 1024)
+        if not chunk:
+            break
+        buf.extend(chunk)
+        if len(buf) > limit:
+            raise ValueError(f"文件超过 {limit // 1024 // 1024}MB 限制")
+    return bytes(buf)
+
+
 @router.post("/upload")
 async def upload(files: list[UploadFile] = File(...), category_id: Optional[int] = None,
                  title: Optional[str] = None):
@@ -84,10 +102,16 @@ async def upload(files: list[UploadFile] = File(...), category_id: Optional[int]
 
     解析 + 向量化是重 IO/CPU 操作，放线程池执行避免阻塞事件循环。
     """
+    if len(files) > MAX_FILES:
+        raise HTTPException(400, f"一次最多上传 {MAX_FILES} 个文件")
     results, errors = [], []
+    total = 0
     for f in files:
         try:
-            data = await f.read()
+            data = await _read_limited(f, MAX_FILE_BYTES)
+            total += len(data)
+            if total > MAX_TOTAL_BYTES:
+                raise ValueError(f"本次上传总量超过 {MAX_TOTAL_BYTES // 1024 // 1024}MB 限制")
             doc = await asyncio.to_thread(
                 shelf_service.save_upload, f.filename or "unnamed", data,
                 category_id=category_id, title=title)

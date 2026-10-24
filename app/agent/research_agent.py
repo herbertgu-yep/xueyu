@@ -15,7 +15,7 @@ import hashlib
 import json
 import time
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Any, Callable, Optional
 
 from app.agent import websearch
 from app.config import THINKING_PROFILES
@@ -29,6 +29,9 @@ class CancelledByUser(Exception):
 
 
 EMIT = Callable[[str, dict], None]
+
+# 只有这些内置工具可以同轮并行；MCP 工具可能有写副作用，一律串行
+READ_ONLY_TOOLS = {"web_search", "open_page", "shelf_search", "note_search"}
 
 RESEARCH_TOOLS = [
     {"type": "function", "function": {
@@ -458,20 +461,40 @@ class ResearchRunner:
                 calls = []
                 for tc in tool_calls:
                     fname = tc["function"]["name"]
+                    err = None
                     try:
                         fargs = json.loads(tc["function"]["arguments"] or "{}")
-                    except Exception:
+                        if not isinstance(fargs, dict):
+                            raise ValueError("参数必须是 JSON 对象")
+                    except Exception as e:  # noqa: BLE001
                         fargs = {}
+                        err = f"参数解析失败：{e}；本次调用未执行"
                     self.log(f"🔧 {fname}（{json.dumps(fargs, ensure_ascii=False)[:80]}）", kind="now")
-                    calls.append((tc, fname, fargs))
-                # 同一轮的多个工具并行执行；写操作类工具仍是串行（这里都是只读工具）
-                results = await asyncio.gather(
-                    *[self._exec_tool(fname, fargs) for _, fname, fargs in calls],
-                    return_exceptions=True)
-                for (tc, fname, _), result in zip(calls, results):
-                    if isinstance(result, BaseException):
-                        result = f"工具执行失败：{result}"
-                    if fname == "finish_research":
+                    calls.append((tc, fname, fargs, err))
+
+                # 只读工具并行；MCP 等可能有副作用的工具串行，避免并发写冲突
+                results: dict[int, Any] = {}
+                parallel = [i for i, (_, f, _, e) in enumerate(calls)
+                            if e is None and f in READ_ONLY_TOOLS]
+                serial = [i for i, (_, f, _, e) in enumerate(calls)
+                          if e is None and f not in READ_ONLY_TOOLS]
+                if parallel:
+                    outs = await asyncio.gather(
+                        *[self._exec_tool(calls[i][1], calls[i][2]) for i in parallel],
+                        return_exceptions=True)
+                    for i, out in zip(parallel, outs):
+                        results[i] = f"工具执行失败：{out}" if isinstance(out, BaseException) else out
+                for i in serial:
+                    if calls[i][1].startswith("mcp__"):
+                        self.log(f"🔒 {calls[i][1]} 视为有副作用，串行执行", kind="now")
+                    try:
+                        results[i] = await self._exec_tool(calls[i][1], calls[i][2])
+                    except BaseException as e:  # noqa: BLE001
+                        results[i] = f"工具执行失败：{e}"
+
+                for i, (tc, fname, _fargs, err) in enumerate(calls):
+                    result = err if err else results.get(i, "未执行")
+                    if fname == "finish_research" and not err:
                         finished = True
                         result = "已确认结束。"
                     messages.append({"role": "tool", "tool_call_id": tc["id"],
@@ -534,7 +557,13 @@ class ResearchRunner:
                 client = next((c for c in self.mcp_clients if c.name == server), None)
                 if not client:
                     return "MCP 服务器未连接"
-                return await client.call(tool, args)
+                result = await client.call(tool, args)
+                text = str(result or "").strip()
+                if text:
+                    # 和网页/文档一样进入统一信源，报告里的引用才能追溯
+                    self.add_source(origin="mcp", title=f"{server}:{tool}",
+                                    url=f"mcp://{server}/{tool}", text=text[:4000])
+                return result
             return f"未知工具 {name}"
         except CancelledByUser:
             raise

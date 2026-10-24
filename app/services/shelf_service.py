@@ -84,6 +84,8 @@ def save_upload(filename: str, data: bytes, *, category_id: Optional[int] = None
     ext = {"markdown": "md"}.get(ext, ext)
     if ext not in ALLOWED_EXTS:
         raise ValueError(f"不支持的格式 .{ext}（支持 PDF / Word / PPT / Markdown / TXT）")
+    if len(data) > 50 * 1024 * 1024:
+        raise ValueError("文件超过 50MB 限制")
     doc_id = uuid.uuid4().hex[:8]
     safe_name = re.sub(r"[\\/:*?\"<>|]", "_", Path(filename).name)
     stored = DOCS_DIR / f"{doc_id}-{safe_name}"
