@@ -22,15 +22,26 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
 QUESTIONS_PATH = pathlib.Path(__file__).resolve().parent.parent / "tests" / "data" / "eval_questions.json"
 OUT_PATH = pathlib.Path(__file__).resolve().parent.parent / "docs" / "evaluation-data.json"
+NEG_OUT_PATH = pathlib.Path(__file__).resolve().parent.parent / "docs" / "negative-check.json"
 
 
 def _title_of(chunk: dict) -> str:
     return str(chunk.get("title") or (chunk.get("metadata") or {}).get("title") or "")
 
 
-def hit_top3(chunks: list[dict], doc: str) -> bool:
-    """标准答案文档的分块是否出现在前 3。"""
-    return any(doc in _title_of(c) for c in chunks[:3])
+def _norm(text: str) -> str:
+    """去空白、标点、大小写，只留字母数字和汉字。"""
+    import re
+
+    return re.sub(r"[^0-9a-z\u4e00-\u9fff]+", "", re.sub(r"[\s\u3000]+", "", str(text).lower()))
+
+
+def hit_top3(chunks: list[dict], answer: str) -> bool:
+    """前 3 个分块里，任一块包含答案原文才算命中（片段级判定）。"""
+    want = _norm(answer)
+    if not want:
+        return False
+    return any(want in _norm(c.get("text") or "") for c in chunks[:3])
 
 
 def run_mode(name: str, qs: list[dict], runner) -> dict:
@@ -42,7 +53,7 @@ def run_mode(name: str, qs: list[dict], runner) -> dict:
         t0 = time.perf_counter()
         chunks = runner(q["q"])
         latency.append((time.perf_counter() - t0) * 1000)
-        h = hit_top3(chunks, q["doc"])
+        h = hit_top3(chunks, q["answer"])
         hits += h
         per_type[q["type"]].append(int(h))
         rows.append({"q": q["q"], "type": q["type"], "expected": q["doc"], "hit": h,
@@ -95,11 +106,15 @@ def main() -> None:
         raise SystemExit("未配置模型，hybrid_full 无法评测；请先配置 Key 或只跑前三档")
 
     full_meta: list[dict] = []
+    pos_scores: list[float] = []
 
     def _full(q: str):
         chunks, meta = asyncio.run(
             rag_service.query_shelf_hybrid(q, k=3, multi_query=True, rerank=True))
         full_meta.append(meta)
+        score = chunks[0].get("rerank_score") if chunks else None
+        if score is not None:
+            pos_scores.append(float(score))
         return chunks
 
     results.append(run_mode("hybrid_full", qs, _full))
@@ -114,6 +129,46 @@ def main() -> None:
     models = {m.get("rerank_model") for m in full_meta}
     print(f"\n自检：{rewritten}/{len(full_meta)} 题完成了多查询改写；"
           f"重排方式 {sorted(kinds)}，模型 {sorted(x for x in models if x)}")
+
+    # 负样本：语料里没有答案的问题。只衡量 cross-encoder 的最高分能否区分「有答案 / 没答案」，
+    # 不改产品行为——现在检索层不拒答，这里只给一个阈值参考。
+    negatives = data.get("negatives", [])
+    if negatives and kinds == {"cross_encoder"}:
+        neg_rows = []
+        for n in negatives:
+            chunks, _meta = asyncio.run(
+                rag_service.query_shelf_hybrid(n["q"], k=3, multi_query=False, rerank=True))
+            score = chunks[0].get("rerank_score") if chunks else None
+            neg_rows.append({"q": n["q"], "top1": _title_of(chunks[0]) if chunks else None,
+                             "score": float(score) if score is not None else None})
+        neg_scores = [r["score"] for r in neg_rows if r["score"] is not None]
+
+        def auc(pos: list[float], neg: list[float]) -> float:
+            if not pos or not neg:
+                return 0.0
+            wins = sum((p > n) + 0.5 * (p == n) for p in pos for n in neg)
+            return wins / (len(pos) * len(neg))
+
+        cuts, best = sorted(set(pos_scores + neg_scores)), None
+        for t in cuts:
+            tpr = sum(s >= t for s in pos_scores) / max(1, len(pos_scores))
+            tnr = sum(s < t for s in neg_scores) / max(1, len(neg_scores))
+            bal = (tpr + tnr) / 2
+            if best is None or bal > best["balanced_acc"]:
+                best = {"threshold": round(t, 4), "balanced_acc": round(bal, 3),
+                        "positive_recall": round(tpr, 3), "negative_reject": round(tnr, 3)}
+        NEG_OUT_PATH.write_text(json.dumps({
+            "n_positive": len(pos_scores), "n_negative": len(neg_scores),
+            "auc": round(auc(pos_scores, neg_scores), 3),
+            "positive_median": round(sorted(pos_scores)[len(pos_scores) // 2], 4) if pos_scores else None,
+            "negative_median": round(sorted(neg_scores)[len(neg_scores) // 2], 4) if neg_scores else None,
+            "best_threshold": best, "negatives": neg_rows}, ensure_ascii=False, indent=2), encoding="utf-8")
+        print(f"负样本检查：AUC {auc(pos_scores, neg_scores):.3f}；"
+              f"最佳阈值 {best['threshold'] if best else None}，"
+              f"有答案召回 {best['positive_recall'] if best else None} / "
+              f"无答案拒绝 {best['negative_reject'] if best else None}")
+    elif negatives:
+        print("负样本检查跳过：当前重排不是 cross-encoder，没有可比较的分数")
 
     OUT_PATH.write_text(json.dumps(results, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"\n{'模式':14s}{'命中率':>8s}{'术语':>8s}{'口语':>8s}{'p50(ms)':>10s}")

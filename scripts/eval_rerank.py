@@ -64,8 +64,12 @@ def _candidates(queries: list[str]) -> list[dict]:
     return _rrf_fuse(list(vector_hits.values()), list(bm25_hits.values()))
 
 
-def _hit(chunks: list[dict], expected: str) -> bool:
-    return any(expected in str(c.get("title") or "") for c in chunks[:3])
+def _hit(chunks: list[dict], answer: str) -> bool:
+    """前 3 个分块里，任一块包含答案原文才算命中。"""
+    from scripts.eval_retrieval import _norm
+
+    want = _norm(answer)
+    return bool(want) and any(want in _norm(c.get("text") or "") for c in chunks[:3])
 
 
 def main() -> None:
@@ -103,7 +107,7 @@ def main() -> None:
             t0 = time.perf_counter()
             ce_ranked = rerank_mod.rerank(q["q"], cand, limit=lim) or cand
             ce_stats[lim]["ms"] += time.perf_counter() - t0
-            ce_stats[lim]["hits"] += _hit(ce_ranked, q["doc"])
+            ce_stats[lim]["hits"] += _hit(ce_ranked, q["answer"])
             if lim == ce_limits[0]:
                 ce_ranked_first = ce_ranked
 
@@ -120,9 +124,9 @@ def main() -> None:
                 llm_ranked = cand
             llm_time_this = time.perf_counter() - t1
             llm_time += llm_time_this
-            llm_ok = _hit(llm_ranked, q["doc"])
+            llm_ok = _hit(llm_ranked, q["answer"])
 
-        ce_ok = _hit(ce_ranked_first, q["doc"])
+        ce_ok = _hit(ce_ranked_first, q["answer"])
         ce_hits += ce_ok
         llm_hits += llm_ok
         rows.append({"q": q["q"], "type": q["type"], "expected": q["doc"],
