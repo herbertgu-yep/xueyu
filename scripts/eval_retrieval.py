@@ -44,8 +44,9 @@ def hit_top3(chunks: list[dict], answer: str) -> bool:
     return any(want in _norm(c.get("text") or "") for c in chunks[:3])
 
 
-def run_mode(name: str, qs: list[dict], runner) -> dict:
+def run_mode(name: str, qs: list[dict], runner, context_check=None) -> dict:
     hits = 0
+    ctx_hits = 0
     per_type: dict[str, list[int]] = {"term": [], "colloquial": []}
     latency: list[float] = []
     rows = []
@@ -55,10 +56,11 @@ def run_mode(name: str, qs: list[dict], runner) -> dict:
         latency.append((time.perf_counter() - t0) * 1000)
         h = hit_top3(chunks, q["answer"])
         hits += h
+        ctx_hits += context_check(chunks, q) if context_check else 0
         per_type[q["type"]].append(int(h))
         rows.append({"q": q["q"], "type": q["type"], "expected": q["doc"], "hit": h,
                      "top1": _title_of(chunks[0]) if chunks else None})
-    return {
+    out = {
         "mode": name,
         "hit_rate": round(hits / len(qs), 3),
         "term_hit_rate": round(sum(per_type["term"]) / len(per_type["term"]), 3),
@@ -66,6 +68,9 @@ def run_mode(name: str, qs: list[dict], runner) -> dict:
         "p50_ms": round(sorted(latency)[len(latency) // 2], 1),
         "rows": rows,
     }
+    if context_check:
+        out["context_hit_rate"] = round(ctx_hits / len(qs), 3)
+    return out
 
 
 def main() -> None:
@@ -76,7 +81,33 @@ def main() -> None:
 
     import asyncio
 
+    from sqlmodel import Session, select
+
     from app.services import rag_service
+    from app.services.rag_service import split_chunks
+    from app.storage.db import engine
+    from app.storage.models import Document
+
+    with Session(engine) as s:
+        docs = s.exec(select(Document)).all()
+    normed_docs = {d.id: [_norm(c) for c in split_chunks(d.text_content)] for d in docs}
+
+    def context_hit(chunks: list[dict], q: dict) -> bool:
+        """前 3 个结果，加上命中块的前后各 1 块，是否包含答案。"""
+        want = _norm(q["answer"])
+        for c in chunks[:3]:
+            if want in _norm(c.get("text") or ""):
+                return True
+            doc_part, _, idx_part = str(c.get("chunk_id") or "").rpartition(":")
+            if not doc_part.isdigit() or not idx_part.isdigit():
+                continue
+            parts = normed_docs.get(int(doc_part)) or []
+            i = int(idx_part)
+            if not 0 <= i < len(parts):
+                continue
+            if any(want in parts[j] for j in range(max(0, i - 1), min(len(parts), i + 2))):
+                return True
+        return False
 
     results = []
 
@@ -117,13 +148,23 @@ def main() -> None:
             pos_scores.append(float(score))
         return chunks
 
-    results.append(run_mode("hybrid_full", qs, _full))
+    results.append(run_mode("hybrid_full", qs, _full, context_check=context_hit))
 
     failed = [m for m in full_meta if not m.get("reranked")]
     if failed:
         raise SystemExit(
             f"hybrid_full 有 {len(failed)} 题没有真正完成重排，数据不可用；"
             f"首个错误：{failed[0].get('rerank_failed') or failed[0].get('rewrite_failed')}")
+    fell_back = [m for m in full_meta if m.get("rerank_fallback")]
+    if fell_back:
+        raise SystemExit(
+            f"hybrid_full 有 {len(fell_back)} 题远程重排失败、退回了本地模型，数据不可用；"
+            "检查 API 余额、模型权限或网络后重跑")
+    vector_down = [m for m in full_meta if m.get("vector_down")]
+    if vector_down:
+        raise SystemExit(
+            f"hybrid_full 有 {len(vector_down)} 题向量路不可用、退化成 BM25，数据不可用；"
+            f"首个错误：{vector_down[0].get('vector_down')}")
     rewritten = sum(1 for m in full_meta if len(m.get("queries", [])) > 1)
     kinds = {m.get("reranked") for m in full_meta}
     models = {m.get("rerank_model") for m in full_meta}
@@ -175,6 +216,9 @@ def main() -> None:
     for r in results:
         print(f"{r['mode']:14s}{r['hit_rate']:>8.1%}{r['term_hit_rate']:>8.1%}"
               f"{r['colloquial_hit_rate']:>8.1%}{r['p50_ms']:>10.1f}")
+    full = next((r for r in results if r["mode"] == "hybrid_full"), None)
+    if full and "context_hit_rate" in full:
+        print(f"全开 + 前后各 1 块上下文：{full['context_hit_rate']:.1%}")
 
 
 if __name__ == "__main__":

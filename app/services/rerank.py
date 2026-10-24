@@ -23,7 +23,8 @@ _model: Any = None
 _failed: Optional[str] = None
 _api_failed: Optional[str] = None
 _api_failed_at: float = 0.0
-_API_RETRY_SECONDS = 60
+_fallback_count = 0
+_API_RETRY_SECONDS = 10
 
 
 def _cfg() -> dict:
@@ -73,6 +74,11 @@ def using_api() -> bool:
     return _api_usable(_cfg())
 
 
+def fallback_count() -> int:
+    """远程重排失败、退回本地模型的次数（评测据此判断数据是否可用）。"""
+    return _fallback_count
+
+
 def unavailable_reason() -> Optional[str]:
     if _api_usable(_cfg()):
         return _api_failed
@@ -82,9 +88,10 @@ def unavailable_reason() -> Optional[str]:
 
 def reset_api_state() -> None:
     """设置改了之后清掉失败缓存，下一次调用立刻按新配置重试。"""
-    global _api_failed, _api_failed_at
+    global _api_failed, _api_failed_at, _fallback_count
     _api_failed = None
     _api_failed_at = 0.0
+    _fallback_count = 0
 
 
 def _normalize(ranked: list[dict], chunks: list[dict], limit: Optional[int]) -> list[dict]:
@@ -95,8 +102,9 @@ def _normalize(ranked: list[dict], chunks: list[dict], limit: Optional[int]) -> 
 def _rerank_api(query: str, chunks: list[dict], cfg: dict, limit: Optional[int],
                 text_limit: int) -> Optional[list[dict]]:
     """DashScope 原生 rerank；失败返回 None（由调用方退回本地模型）。"""
-    global _api_failed, _api_failed_at
+    global _api_failed, _api_failed_at, _fallback_count
     if _api_failed and time.time() - _api_failed_at < _API_RETRY_SECONDS:
+        _fallback_count += 1
         return None
 
     import httpx
@@ -112,26 +120,37 @@ def _rerank_api(query: str, chunks: list[dict], cfg: dict, limit: Optional[int],
                   "documents": [str(c.get("text") or "")[:text_limit] for c in cand]},
         "parameters": {"top_n": len(cand), "return_documents": False},
     }
-    try:
-        resp = httpx.post(url, headers={"Authorization": f"Bearer {cfg['api_key']}"},
-                          json=body, timeout=30)
-        if resp.status_code != 200:
-            raise RuntimeError(f"HTTP {resp.status_code}: {resp.text[:160]}")
-        results = ((resp.json().get("output") or {}).get("results") or [])
-        by_index: dict[int, dict] = {}
-        for item in results:
-            i = int(item["index"])
-            if 0 <= i < len(cand):
-                by_index[i] = {**cand[i], "rerank_score": round(float(item["relevance_score"]), 4)}
-        if not by_index:
-            raise RuntimeError("返回结果为空")
-    except Exception as e:  # noqa: BLE001
-        _api_failed = f"{type(e).__name__}: {e}"[:200]
-        _api_failed_at = time.time()
-        log.warning("rerank api failed, falling back to local: %s", _api_failed)
-        return None
+    last_error = ""
+    for attempt in range(2):
+        try:
+            resp = httpx.post(url, headers={"Authorization": f"Bearer {cfg['api_key']}"},
+                              json=body, timeout=30)
+            if resp.status_code != 200:
+                raise RuntimeError(f"HTTP {resp.status_code}: {resp.text[:160]}")
+            results = ((resp.json().get("output") or {}).get("results") or [])
+            by_index: dict[int, dict] = {}
+            for item in results:
+                i = int(item["index"])
+                if 0 <= i < len(cand):
+                    by_index[i] = {**cand[i], "rerank_score": round(float(item["relevance_score"]), 4)}
+            if not by_index:
+                raise RuntimeError("返回结果为空")
+            _api_failed = None
+            return _finish_api(by_index, cand, chunks, limit)
+        except Exception as e:  # noqa: BLE001
+            last_error = f"{type(e).__name__}: {e}"[:200]
+            if attempt == 0:                 # 账户侧瞬时 4xx/5xx，重试一次再放弃
+                time.sleep(0.8)
 
-    _api_failed = None
+    _api_failed = last_error
+    _api_failed_at = time.time()
+    _fallback_count += 1
+    log.warning("rerank api failed, falling back to local: %s", _api_failed)
+    return None
+
+
+def _finish_api(by_index: dict[int, dict], cand: list[dict], chunks: list[dict],
+                limit: Optional[int]) -> list[dict]:
     ranked = [by_index[i] for i in sorted(by_index, key=lambda i: -by_index[i]["rerank_score"])]
     ranked.extend(c for i, c in enumerate(cand) if i not in by_index)
     return _normalize(ranked, chunks, limit)
