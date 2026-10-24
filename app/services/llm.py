@@ -6,6 +6,8 @@
 """
 from __future__ import annotations
 
+import logging
+
 import asyncio
 import json
 import re
@@ -27,6 +29,8 @@ class LLMConfigError(RuntimeError):
 class LLMCallError(RuntimeError):
     """模型调用失败（网络 / 鉴权 / 限流）。"""
 
+
+log = logging.getLogger("xueyu.llm")
 
 _FN_NAMES = {"note": "笔记 AI", "doc": "文档分析", "research": "深度研究"}
 
@@ -70,16 +74,29 @@ def _cosine(a: list[float], b: list[float]) -> float:
     return dot / (na * nb) if na and nb else 0.0
 
 
-def semantic_cache_get(query: str) -> Optional[str]:
-    """语义缓存命中：相似度 ≥ 阈值则直接返回历史回答。"""
+def _cache_scope(fn: Optional[str], scope: str) -> tuple[str, str]:
+    """缓存作用域 = 调用方给的作用域 + 当前功能实际使用的模型。
+
+    文档问答必须把文档版本放进 scope；否则同文档改内容、换模型后
+    仍可能命中旧答案。
+    """
+    cfg = settings_store.llm_config(fn)
+    return scope, _model_string(cfg)
+
+
+def semantic_cache_get(query: str, *, scope: str = "", fn: Optional[str] = None) -> Optional[str]:
+    """语义缓存命中：作用域与模型都一致、相似度 ≥ 阈值才返回。"""
     if not _cache_enabled():
         return None
     qemb = _query_embedding(query)
     if not qemb:
         return None
+    want_scope, want_model = _cache_scope(fn, scope)
     with _semcache_lock:
         best, best_sim = None, 0.0
         for item in _semcache:
+            if item.get("scope") != want_scope or item.get("model") != want_model:
+                continue
             sim = _cosine(qemb, item["emb"])
             if sim > best_sim:
                 best, best_sim = item, sim
@@ -88,14 +105,17 @@ def semantic_cache_get(query: str) -> Optional[str]:
     return None
 
 
-def semantic_cache_put(query: str, response: str) -> None:
+def semantic_cache_put(query: str, response: str, *, scope: str = "",
+                       fn: Optional[str] = None) -> None:
     if not _cache_enabled() or not response:
         return
     qemb = _query_embedding(query)
     if not qemb:
         return
+    want_scope, want_model = _cache_scope(fn, scope)
     with _semcache_lock:
-        _semcache.append({"emb": qemb, "response": response, "ts": time.time()})
+        _semcache.append({"emb": qemb, "response": response, "scope": want_scope,
+                          "model": want_model, "ts": time.time()})
         if len(_semcache) > _SEMCACHE_MAX:
             _semcache.pop(0)
 
@@ -240,7 +260,7 @@ def _call_kwargs(cfg: dict) -> dict:
 def acompletion(messages: list[dict], *, temperature: Optional[float] = None, max_tokens: Optional[int] = None, fn: Optional[str] = None) -> str:
     """同步上下文里调用；返回文本。阻塞放线程池。fn = 功能路由（note/doc/research）。"""
     cfg = settings_store.llm_config(fn)
-    if not settings_store.is_configured():
+    if not settings_store.is_configured(fn):
         raise LLMConfigError(_unconfigured_msg(fn))
     kwargs: dict[str, Any] = {
         "model": _model_string(cfg),
@@ -271,9 +291,9 @@ async def achat(
     if compact:
         try:
             messages = await compact_messages(messages, fn=fn)
-        except Exception:
-            pass
-    if not settings_store.is_configured():
+        except Exception as e:  # noqa: BLE001
+            log.warning("上下文压缩失败，按原消息继续：%s", e)
+    if not settings_store.is_configured(fn):
         raise LLMConfigError(_unconfigured_msg(fn))
     kwargs: dict[str, Any] = {
         "model": _model_string(cfg),
@@ -294,7 +314,7 @@ async def achat(
 async def astream(messages: list[dict], *, temperature: Optional[float] = None, fn: Optional[str] = None) -> AsyncIterator[str]:
     """流式对话（AI 面板自由对话使用）。"""
     cfg = settings_store.llm_config(fn)
-    if not settings_store.is_configured():
+    if not settings_store.is_configured(fn):
         raise LLMConfigError(_unconfigured_msg(fn))
     kwargs: dict[str, Any] = {"model": _model_string(cfg), "messages": messages, **_call_kwargs(cfg)}
     if temperature is not None:

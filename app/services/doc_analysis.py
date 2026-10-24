@@ -102,27 +102,41 @@ def _quiz(text: str) -> list[dict]:
 
 
 def ask(doc_id: int, question: str, history: Optional[list[dict]] = None) -> dict:
-    """单文档问答：基于文档完整原文回答（不依赖向量索引）。"""
+    """单文档问答：基于文档原文回答（不依赖向量索引）。"""
     from app.services import llm as llm_mod
 
-    cached = llm_mod.semantic_cache_get(f"doc{doc_id}:{question}")
-    if cached:
-        return {"answer": cached, "sources": [], "cached": True}
     with Session(engine) as s:
         doc = s.get(Document, doc_id)
         if not doc:
             raise KeyError("文档不存在")
+
+    # 缓存作用域带上文档版本；多轮对话直接不走缓存（答案依赖上文）
+    version = doc.indexed_at or doc.uploaded_at or ""
+    scope = f"doc:{doc_id}:{version}"
+    use_cache = not history
+    if use_cache:
+        cached = llm_mod.semantic_cache_get(question, scope=scope, fn="doc")
+        if cached:
+            return {"answer": cached, "sources": [{"doc_id": doc_id, "title": doc.title}],
+                    "cached": True}
+
     context = doc.text_content or ""
-    if len(context) > 60000:
+    truncated = len(context) > 60000
+    if truncated:
         context = context[:40000] + "\n…（中间内容略）…\n" + context[-15000:]
     if not context.strip():
         return {"answer": "该文档没有可分析的文本（可能为扫描件，需先启用 OCR 解析）。", "sources": [], "cached": False}
-    msgs = [{"role": "system", "content":
-             "你是学习助手，基于提供的完整文档回答问题。回答用中文，紧扣文档内容；"
-             "文档中没有的信息要明确说明文档未涉及。"}]
+    intro = ("你是学习助手，基于提供的文档回答问题。回答用中文，紧扣文档内容；"
+             "文档中没有的信息要明确说明文档未涉及。")
+    if truncated:
+        intro += ("注意：文档因长度限制只提供了开头和结尾，中间部分已省略；"
+                  "涉及中间章节的问题要明确说明无法确定，不要猜测。")
+    msgs = [{"role": "system", "content": intro}]
     for h in (history or [])[-6:]:
         msgs.append({"role": h.get("role", "user"), "content": str(h.get("content", ""))[:2000]})
-    msgs.append({"role": "user", "content": f"文档《{doc.title}》全文：\n\n{context}\n\n问题：{question}"})
+    label = "节选" if truncated else "全文"
+    msgs.append({"role": "user", "content": f"文档《{doc.title}》{label}：\n\n{context}\n\n问题：{question}"})
     answer = llm.acompletion(msgs, temperature=0.3, fn="doc")
-    llm_mod.semantic_cache_put(f"doc{doc_id}:{question}", answer)
+    if use_cache:
+        llm_mod.semantic_cache_put(question, answer, scope=scope, fn="doc")
     return {"answer": answer, "sources": [{"doc_id": doc_id, "title": doc.title}], "cached": False}
