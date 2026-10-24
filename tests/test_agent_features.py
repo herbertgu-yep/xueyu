@@ -89,3 +89,92 @@ def test_ssrf_resolution_blocks_private():
     assert websearch._resolve_checked("10.0.0.1") == []
     assert websearch._host_allowed("169.254.169.254") is False
     assert isinstance(websearch._proxy_configured(), bool)
+
+def test_skill_selection_empty_means_none(monkeypatch):
+    skills = [{"id": c, "name": c, "description": "", "when_to_use": ""} for c in "abc"]
+
+    async def fake_ask_json(system, user, **kw):
+        return {"skills": []}
+
+    monkeypatch.setattr(llm, "ask_json", fake_ask_json)
+    runner = _runner(skills=skills, skill_loader=lambda sid: f"{sid}-body")
+    import asyncio
+
+    asyncio.run(runner._prepare_skills())
+    assert runner.loaded_skills == []
+
+
+def test_skill_truncation_is_marked():
+    runner = _runner(skills=[{"id": "long", "name": "L", "description": "", "when_to_use": ""}],
+                     skill_loader=lambda sid: "字" * 5000)
+    runner._load_skill("long")
+    assert "已截断" in runner.skills_prompt()
+
+
+def test_mcp_sources_separated_by_arguments():
+    class FakeClient:
+        name = "srv"
+        tools = [{"name": "query", "description": "read", "inputSchema": {},
+                  "annotations": {"readOnlyHint": True}}]
+
+        async def call(self, tool, args):
+            return f"result-{args['q']}"
+
+    runner = _runner(mcp_clients=[FakeClient()])
+    runner._mcp_tool_specs()
+    alias = next(iter(runner._mcp_alias))
+    import asyncio
+
+    asyncio.run(runner._exec_tool(alias, {"q": "a"}))
+    asyncio.run(runner._exec_tool(alias, {"q": "b"}))
+    assert len(runner.sources) == 2
+    assert runner.sources[0]["text"] != runner.sources[1]["text"]
+
+
+def test_mcp_start_failure_cleans_up():
+    from app.agent.mcp_client import McpStdioClient
+
+    client = McpStdioClient("bad", "definitely-not-a-real-command-xyz")
+    import asyncio
+
+    try:
+        asyncio.run(client.start())
+    except Exception:
+        pass
+    else:
+        raise AssertionError("不存在的命令应当启动失败")
+    assert client.proc is None and client.started is False and client._reader_task is None
+
+
+def test_tool_risk_levels():
+    from app.agent.research_agent import tool_risk_level
+
+    assert tool_risk_level("delete_file", "", {}) == "high"
+    assert tool_risk_level("get_weather", "", {}) == "read"
+    assert tool_risk_level("frobnicate", "", {}) == "write"
+    assert tool_risk_level("anything", "", {"readOnlyHint": True}) == "read"
+    assert tool_risk_level("anything", "", {"destructiveHint": True}) == "high"
+
+
+def test_pages_for_chunks_carries_context():
+    from app.services.rag_service import _pages_for_chunks
+
+    pages = _pages_for_chunks(["【第 2 页】a", "b", "【第 3 页】c", "d"])
+    assert pages == [(2, 2), (2, 2), (3, 3), (3, 3)]
+
+
+def test_mcp_high_risk_waits_for_user_approval():
+    events = []
+    runner = _runner(emit=lambda e, p: events.append((e, p)))
+    import asyncio
+
+    async def go():
+        for approved in (True, False):
+            task = asyncio.create_task(runner._ask_approval("srv", "delete_file", {"id": 1}))
+            await asyncio.sleep(0.05)
+            rid = next(iter(runner._approvals))
+            runner.resolve_approval(rid, approved)
+            assert await task is approved
+
+    asyncio.run(go())
+    assert any(e == "approval" for e, _ in events)
