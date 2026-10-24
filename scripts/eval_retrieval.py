@@ -133,7 +133,7 @@ def main() -> None:
     # 负样本：语料里没有答案的问题。只衡量 cross-encoder 的最高分能否区分「有答案 / 没答案」，
     # 不改产品行为——现在检索层不拒答，这里只给一个阈值参考。
     negatives = data.get("negatives", [])
-    if negatives and kinds == {"cross_encoder"}:
+    if negatives and kinds and kinds <= {"cross_encoder", "rerank_api"}:
         neg_rows = []
         for n in negatives:
             chunks, _meta = asyncio.run(
@@ -168,7 +168,7 @@ def main() -> None:
               f"有答案召回 {best['positive_recall'] if best else None} / "
               f"无答案拒绝 {best['negative_reject'] if best else None}")
     elif negatives:
-        print("负样本检查跳过：当前重排不是 cross-encoder，没有可比较的分数")
+        print("负样本检查跳过：当前重排没有可比较的相关性分数")
 
     OUT_PATH.write_text(json.dumps(results, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"\n{'模式':14s}{'命中率':>8s}{'术语':>8s}{'口语':>8s}{'p50(ms)':>10s}")
