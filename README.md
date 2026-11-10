@@ -1,6 +1,6 @@
 <div align="center">
 
-![学屿](assets/icon.png)
+<img src="assets/icon.png" alt="学屿" width="120">
 
 # 学屿 XueYu
 
